@@ -1,0 +1,96 @@
+# DTorch 文档站点配置（MkDocs + Material）
+# 参考 vLLM 方案：Markdown 源置于 docs/，mkdocs.yml 置于仓库根。
+
+site_name: DTorch 文档
+site_description: 基于 Single-Controller 与 Distributed Tensor 的 PyTorch 分布式深度学习 API
+site_author: Pei Tingkuan
+docs_dir: docs
+
+# 仓库（GitHub）
+repo_url: https://github.com/tingkuanpei/dtorch
+repo_name: tingkuanpei/dtorch
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: zh
+  icon:
+    logo: material/function-variant
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换至暗色模式
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换至亮色模式
+  font:
+    text: Noto Sans SC
+    code: JetBrains Mono
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tingkuanpei/dtorch
+
+nav:
+  - DTorch: index.md
+  - Get Started:
+      - 构建指南: get_started/how_to_build.md
+      - 测试指南: get_started/test.md
+  - User Guide:
+      - Distributed Tensor (DTensor): user_guide/distributed_tensor.md
+      - Python API: user_guide/python_api.md
+  - Developer Guide:
+      - 总体架构: developer_guide/architecture.md
+      - 设计理念: developer_guide/design_concept.md
+      - Single-Controller 架构: developer_guide/single_controller.md
+      - Eager Graph 架构:
+          - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
+          - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md
+          - Layer 2 · Kernel 运行时: developer_guide/eager_graph_architecture/kernel_runtime.md
+          - Layer 3 · Eager Graph 引擎（单机多线程）: developer_guide/eager_graph_architecture/eager_graph_engine.md
+          - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate.md

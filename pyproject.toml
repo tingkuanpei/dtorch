@@ -1,0 +1,83 @@
+[build-system]
+requires = ["scikit-build-core>=0.11"]
+build-backend = "scikit_build_core.build"
+
+
+[project]
+name = "dist-torch"
+version = "0.0.1"
+license-files = ["LICENSE"]
+description="Distributed API for PyTorch"
+readme = "README.md"
+authors = [
+    { name = "Pei Tingkuan", email = "peitingkuan@163.com" },
+]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "torch==2.8.0",
+    "torchvision",
+    "transformers==4.53.1",
+    "diffusers==0.34.0",
+    "nanobind>=2.0",
+    "numpy",
+    "protobuf",
+    "sentencepiece",
+    "accelerate==1.0.1",
+    "scikit-image",
+#     "git+https://github.com/thu-ml/SageAttention.git@798c791d276f302d4f19246feffa053a9e4c5af5#egg=sageattention",
+]
+
+
+[project.optional-dependencies]
+dev = [
+    "clang-format==18.1.8",
+    "black==22.8.0",
+    "twine>=4.0",
+    "pre-commit",
+]
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.5.49",
+]
+
+
+[tool.scikit-build]
+build-dir = "build"
+build.tool-args = ["-j12"]
+build.verbose = false
+logging.level = "INFO"
+cmake.version = ">=3.18.0"
+cmake.build-type = "Release"
+cmake.source-dir = "."
+ninja.version = ">=1.11"
+minimum-version = "build-system.requires"
+strict-config = false
+wheel.packages = ["python/dtorch"]
+wheel.exclude = ["*/lib/*", "*/include/*"]
+wheel.py-api = "cp38"
+
+
+[tool.scikit-build.cmake.define]
+CMAKE_VERBOSE_MAKEFILE = {env="CMAKE_VERBOSE_MAKEFILE", default="0"}
+DTORCH_WITH_CUDA = {env="DTORCH_WITH_CUDA", default="ON"}
+DTORCH_WITH_TRITON = {env="DTORCH_WITH_TRITON", default="OFF"}
+DTORCH_THIRD_PARTY_USE_LOCAL_URL = {env="DTORCH_THIRD_PARTY_USE_LOCAL_URL", default="ON"}
+# build/third_party/glog/glog-src/CMakeLists.txt:1 (cmake_minimum_required):
+# Compatibility with CMake < 3.5 has been removed from CMake.
+CMAKE_POLICY_VERSION_MINIMUM = "3.5"
+
+
+[tool.cibuildwheel]
+# Stable ABI (abi3): one build for all CPython 3.8+
+build = ["cp38-*"]
+# Only build manylinux x86_64
+skip = ["*musllinux*", "*i686*"]

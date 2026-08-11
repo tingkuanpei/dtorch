@@ -1,0 +1,15 @@
+/*
+Copyright 2026 The DTorch Authors. All rights reserved.
+
+Author: Tingkuan Pei(contact: peitingkuan@163.com)
+*/
+
+#include "dtorch/common/config.h"
+
+namespace dtorch {
+
+const std::string kDTorchCompileRoot = "@DTORCH_ROOT_DIR@";
+const std::string kDTorchComileCommitId = "@DTORCH_COMMIT_HASH@";
+const std::string kDTorchCompileArguments = "@DTORCH_COMPILE_ARGUMENTS@";
+
+}  // namespace dtorch

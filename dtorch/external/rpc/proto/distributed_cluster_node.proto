@@ -1,0 +1,71 @@
+// Copyright 2026 The DTorch Authors. All rights reserved.
+//
+// Author: Tingkuan Pei(contact: peitingkuan@163.com)
+
+syntax = "proto3";
+
+package distributed;
+
+message EmptyRequest {}
+
+message EmptyReply {}
+
+message RegisterWorkerNodeRequest {
+    string worker_node_address = 1;
+    int64 gpu_count = 2;
+}
+
+message GraphIdRequest {
+    uint64 graph_id = 1;
+}
+
+message CreateGraphRequest {
+    uint64 graph_id = 1;
+    string publisher_address = 2;      // MainNode ZMQ PUB address (RemoteRunnerPublisher)
+    string push_pull_address = 3;      // MainNode ZMQ PULL address (RemoteRunnerPuller)
+    bytes graph_option_data = 4;       // Boost-text-serialized api::cpp::GraphOption
+    bytes supported_devices_data = 5;  // Boost-text-serialized RunnerSupportedDevices (this worker's)
+    bytes cluster_info_data = 6;       // Boost-text-serialized ClusterInfo (cluster-wide, MainNode authoritative)
+}
+
+message EnvVar {
+    string key = 1;      // Environment variable name
+    string value = 2;    // Environment variable value (only valid when has_value == true)
+    bool has_value = 3;  // Whether this variable is defined on MainNode
+}
+
+message SyncGlobalOptionReply {
+    bytes global_option_data = 1;  // Boost-serialized GlobalOption
+}
+
+message SyncEnvVarsReply {
+    repeated EnvVar env_vars = 1;  // Environment variables (both defined and undefined)
+}
+
+message SyncClusterConfigReply {
+    string main_process_heart_beat_address = 1;
+    string global_comm_instance_id = 2;
+}
+
+// The distributed cluster main node service definition.
+service MainNode {
+    rpc RegisterWorkerNode(RegisterWorkerNodeRequest) returns (EmptyReply) {}
+
+    // Sync GlobalOption from MainNode to WorkerNode
+    rpc SyncGlobalOption(EmptyRequest) returns (SyncGlobalOptionReply) {}
+
+    // Sync specific environment variables from MainNode to WorkerNode
+    rpc SyncEnvVars(EmptyRequest) returns (SyncEnvVarsReply) {}
+
+    // Sync cluster-level config (heartbeat address, instance id) to WorkerNode
+    rpc SyncClusterConfig(EmptyRequest) returns (SyncClusterConfigReply) {}
+}
+
+// The distributed cluster worker node service definition.
+service WorkerNode {
+    rpc SendDestroySignal(EmptyRequest) returns (EmptyReply) {}
+
+    rpc CreateGraph(CreateGraphRequest) returns (EmptyReply) {}
+
+    rpc DestroyGraph(GraphIdRequest) returns (EmptyReply) {}
+}

@@ -1,0 +1,32 @@
+# macOS
+__MACOSX
+
+# Code editors
+.*
+# Keep CI / Pages config tracked (the .* rule above would ignore it)
+!.github
+
+# visual studio
+.vs
+*.sln
+*.pyproj
+
+# PyCharm
+.idea
+
+# clangd
+.cache
+compile_commands.json
+
+# dtorch
+build/*
+dist/*
+site/*
+third_party_local_url
+third_party_install
+test_data
+dump_tensor/*
+save_dot/*
+*.jpg
+*.png
+*.nsys-rep

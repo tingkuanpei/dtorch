@@ -1,0 +1,3 @@
+transformers: Modified from [huggingface/transformers](https://github.com/huggingface/transformers) with tag v4.53.1.
+
+diffusers: Modified from [huggingface/diffusers](https://github.com/huggingface/diffusers) with tag v0.34.0.

@@ -1,0 +1,23 @@
+// Copyright 2026 The DTorch Authors. All rights reserved.
+//
+// Author: Tingkuan Pei(contact: peitingkuan@163.com)
+
+syntax = "proto3";
+
+package greeter;
+
+// The greeting service definition.
+service Greeter {
+    // Sends a greeting
+    rpc SayGreeter(GreeterRequest) returns (GreeterReply) {}
+}
+
+// The request message containing the user's name.
+message GreeterRequest {
+    string name = 1;
+}
+
+// The response message containing the greetings
+message GreeterReply {
+    string message = 1;
+}

@@ -1,0 +1,27 @@
+// Copyright 2026 The DTorch Authors. All rights reserved.
+//
+// Author: Tingkuan Pei(contact: peitingkuan@163.com)
+
+syntax = "proto3";
+
+package heart_beat;
+
+service HeartBeat {
+    rpc IsBeat(HeartBeatRequest) returns (HeartBeatReply) {}
+
+    rpc NotifyStopPoll(HeartBeatRequest) returns (HeartBeatReply) {}
+
+    rpc RegisterWorkerProcess(RegisterWorkerProcessRequest) returns (RegisterWorkerProcessReply) {}
+
+    rpc UnregisterWorkerProcess(RegisterWorkerProcessRequest) returns (RegisterWorkerProcessReply) {}
+}
+
+message HeartBeatRequest {}
+
+message HeartBeatReply {}
+
+message RegisterWorkerProcessRequest {
+    string worker_address = 1;
+}
+
+message RegisterWorkerProcessReply {}

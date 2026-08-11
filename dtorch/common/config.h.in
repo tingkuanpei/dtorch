@@ -1,0 +1,24 @@
+/*
+Copyright 2026 The DTorch Authors. All rights reserved.
+
+Author: Tingkuan Pei(contact: peitingkuan@163.com)
+*/
+
+#pragma once
+
+#include <string>
+
+#cmakedefine01  DTORCH_DEBUG
+
+#cmakedefine01  DTORCH_WITH_CUDA
+#cmakedefine01  DTORCH_WITH_TRITON
+#cmakedefine01  DTORCH_WITH_BOOST
+#cmakedefine01  DTORCH_INTEL_MAXOS_TORCH_2_2_2
+
+namespace dtorch {
+
+extern const std::string kDTorchCompileRoot;
+extern const std::string kDTorchComileCommitId;
+extern const std::string kDTorchCompileArguments;
+
+}  // namespace dtorch

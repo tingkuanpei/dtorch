@@ -1,0 +1,50 @@
+# To use:
+#
+#     pre-commit run -a
+#
+# Or:
+#
+#     pre-commit install  # (runs every time you commit in git)
+#
+# To update this file:
+#
+#     pre-commit autoupdate
+#
+# See https://github.com/pre-commit/pre-commit
+
+ci:
+  autoupdate_commit_msg: "chore: update pre-commit hooks"
+  autofix_commit_msg: "style: pre-commit fixes"
+
+repos:
+# Standard hooks
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+  - id: check-docstring-first
+  - id: check-toml
+  - id: check-added-large-files
+  - id: check-case-conflict
+  - id: check-merge-conflict
+  - id: check-symlinks
+  - id: check-yaml
+    exclude: ^conda\.recipe/meta\.yaml$
+  - id: debug-statements
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
+  - id: requirements-txt-fixer
+  - id: trailing-whitespace
+
+# Python formatting
+- repo: https://github.com/psf/black
+  rev: 22.8.0
+  hooks:
+    - id: black-jupyter
+      args:
+        - --line-length=120
+
+# C++ formatting
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v18.1.8
+  hooks:
+  - id: clang-format
