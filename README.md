@@ -1,23 +1,81 @@
-# DTorch
+# DTorch: An easy-to-use distributed inference API for PyTorch
 
-![Status](https://img.shields.io/badge/status-beta-orange)
-![Python](https://img.shields.io/badge/python-%E2%89%A5%203.10-blue)
-![C++](https://img.shields.io/badge/C%2B%2B-17-00599c)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.8.0-ee4c2c)
-![Platform](https://img.shields.io/badge/platform-Linux%20%2F%20x86__64-lightgrey)
+<p align="center">
+| <a href="https://tingkuanpei.github.io/dtorch/"><b>Documentation</b></a> | <a href="https://tingkuanpei.github.io/dtorch/"><b>Blog</b></a> |
+</p>
 
-**DTorch** is a distributed deep learning API for PyTorch, built on the **Single-Controller** and **Distributed Tensor (DTensor)** architectures. It lets you scale a single-GPU PyTorch program to a multi-GPU, multi-node cluster **without changing your computation logic** — you only declare a `DeviceMesh` and `Placements`, and DTorch takes care of resource management, scheduling, and communication.
+**DTorch is an easy-to-use distributed inference API for PyTorch.** No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-machine, single-GPU code, then make one small change: replace `Tensor` by `DTensor`. DTorch automatically handles resource management, scheduling, and communication.
+
+For example, here is how to shard a tensor across two GPUs — the same task written both ways:
+
+<table>
+<thead>
+<tr>
+<th>DTorch (single-thread)</th>
+<th>PyTorch (multi-process)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
+
+```python
+# Launch: python3 test.py
+
+import dtorch
+
+shape = (4, 3)
+mesh = dtorch.DeviceMesh("cpu", [0, 1])
+placements = [dtorch.Shard(0)]
+x = dtorch.rand(shape, device_mesh=mesh,
+                placements=placements)
+
+print(f"{x=}")
+```
+
+</td>
+<td valign="top">
+
+```python
+# PyTorch needs torchrun to launch several processes; each runs the code below.
+# Launch: torchrun --standalone --nnodes=1 --nproc-per-node=2 test.py
+
+import torch
+import torch.distributed as dist
+
+dist.init_process_group('nccl')
+world_size = dist.get_world_size()
+rank = dist.get_rank()
+
+torch.cuda.set_device(rank)
+
+shape = (4, 3)
+rows = shape[0] // world_size
+x = torch.rand((rows, shape[1]), device='cuda')
+
+print(f"{rank=}, x: {x.shape}, {x.device}")
+
+all_x = [torch.zeros_like(x) for _ in range(world_size)]
+dist.all_gather(all_x, x)
+all_x = torch.concat(all_x, dim=0)
+
+print(f"{rank=}, all_x: {all_x.shape=}, {all_x.device}")
+
+dist.destroy_process_group()
+```
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ---
 
 ## Highlights
 
-- **PyTorch-compatible API.** On a single device, DTorch behaves identically to PyTorch — tensors, operators, modules, and dtypes map one-to-one. Existing model code needs only import substitutions to run.
-- **Native DTensor.** Describe N-dimensional parallelism with `DeviceMesh` + `Placements` (`Shard` / `Replicate` / `Partial`). All operators infer the output's placement automatically — no manual sharding or gathers.
-- **Declarative redistribution.** Change a tensor's layout with `tensor.redistribute(...)`. DTorch inserts the right collective (AllReduce, AllGather, ReduceScatter, …) and overlaps it with computation — **no `ProcessGroup` or explicit collectives in user code.**
-- **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring), Pipeline Parallel, Expert Parallel, and ZeRO — all expressible in the same code, and **freely composable**.
-- **Eager Graph Architecture.** An eager user interface backed by an asynchronous, graph-aware execution engine that enables compute/communication overlap, operator fusion, redundancy elimination, and memory reuse.
-- **Single-GPU distributed simulation.** Develop and debug a multi-way parallel program on a **single** GPU before deploying to a real cluster — DTorch's logical `DeviceMesh` simulates the sharding and collectives for you.
+- **PyTorch-compatible API.** On a single device, DTorch behaves identically to PyTorch — tensors, operators, modules, and dtypes map one-to-one.
+- **DTensor Native.** Describe N-dimensional parallelism with `DeviceMesh` + `Placements`. All operators infer the output's placement automatically.
+- **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring), Pipeline Parallel and Expert Parallel — all expressible in the same code, and **freely composable**.
 
 ---
 
@@ -54,19 +112,3 @@ The **Client** (a single-threaded Python process) creates DTensor symbols and op
 A four-layer engine — *graph representation → kernel runtime → Eager Graph engine → collective communication* — that exposes a simple eager API while gaining graph-level optimizations. The Client emits incremental sub-graphs asynchronously; the Controller rewrites and executes them with a three-level concurrency model (between graphs, between operators, and within operators).
 
 ---
-
-## Documentation
-
-Full documentation lives under [`docs/`](docs/).
-
-| Topic | Document |
-|---|---|
-| Architecture overview | [docs/developer_guide/architecture.md](docs/developer_guide/architecture.md) |
-| Design concepts | [docs/developer_guide/design_concept.md](docs/developer_guide/design_concept.md) |
-| Python API & DTensor | [docs/user_guide/python_api.md](docs/user_guide/python_api.md) |
-| Distributed Tensor | [docs/user_guide/distributed_tensor.md](docs/user_guide/distributed_tensor.md) |
-| Single-Controller architecture | [docs/developer_guide/single_controller.md](docs/developer_guide/single_controller.md) |
-| Eager Graph architecture | [docs/developer_guide/eager_graph_architecture/](docs/developer_guide/eager_graph_architecture/) |
-| Diffusion model applications | [docs/user_guide/applications.md](docs/user_guide/applications.md) |
-| Build guide | [docs/get_started/how_to_build.md](docs/get_started/how_to_build.md) |
-| Test guide | [docs/get_started/test.md](docs/get_started/test.md) |
