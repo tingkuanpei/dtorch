@@ -4,7 +4,7 @@
 | <a href="https://tingkuanpei.github.io/dtorch/"><b>Documentation</b></a> | <a href="https://tingkuanpei.github.io/dtorch/"><b>Blog</b></a> |
 </p>
 
-**DTorch is an easy-to-use distributed inference API for PyTorch.** No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-machine, single-GPU code, then make one small change: replace `Tensor` by `DTensor`. DTorch automatically handles resource management, scheduling, and communication.
+**DTorch is an easy-to-use distributed inference API for PyTorch.** No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-device code, then make one small change: replace `Tensor` by `DTensor`. DTorch will automatically handle resource management, scheduling, and communication.
 
 For example, here is how to shard a tensor across two GPUs — the same task written both ways:
 
@@ -37,7 +37,7 @@ print(f"{x=}")
 <td valign="top">
 
 ```python
-# PyTorch needs torchrun to launch several processes; each runs the code below.
+# PyTorch needs torchrun to launch several processes.
 # Launch: torchrun --standalone --nnodes=1 --nproc-per-node=2 test.py
 
 import torch
@@ -73,27 +73,31 @@ dist.destroy_process_group()
 
 ## Highlights
 
-- **PyTorch-compatible API.** On a single device, DTorch behaves identically to PyTorch — tensors, operators, modules, and dtypes map one-to-one.
-- **DTensor Native.** Describe N-dimensional parallelism with `DeviceMesh` + `Placements`. All operators infer the output's placement automatically.
+- 🔥 **Easy to Use.** By far the easiest-to-use distributed API for PyTorch — just like writing single-device PyTorch code. You describe the distributed computation as ordinary PyTorch code on a single thread, and the framework automatically handles task dispatch, scheduling, and communication across the cluster. (This makes it easy to orchestrate heterogeneous workloads — placing different models on different GPUs, or interleaving inference and training across RL rollouts and updates.)
+- **Single-Controller.** One python thread drives the entire cluster — no multi-process launch, no SPMD, no `ProcessGroup`. 
+- **DTensor Native.** Every tensor in DTorch is a `DTensor`, and every operator works on it natively. No manual shape sharding, no manual `all_gather` across ranks — you just declare the tensor and print it directly. 
+- **PyTorch-compatible API.** DTorch provides an API consistent with PyTorch — tensors, operators, modules, and dtypes map one-to-one.
 - **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring), Pipeline Parallel and Expert Parallel — all expressible in the same code, and **freely composable**.
+- **Asynchronous Computation.** DTorch uses asynchronous execution to overlap the distributed system's scheduling overhead with computation. This also provides a range of performance-optimization opportunities.
+- **Lower CPU overhead.** Benefiting from DTorch's asynchronous execution, the Python thread only constructs compute nodes — it never executes them directly. Combined with awaitable `TensorFuture`s, this keeps the interpreter light and minimizes GPU idle time caused by slow CPU-side kernel launches.
 
 ---
 
-## How It Works
+## Architecture
 
-DTorch is organized around three core design concepts.
+DTorch rests on three core design concepts that work together to make distributed execution feel like ordinary single-device PyTorch. A **Single-Controller** execution model lets one Python thread drive the entire cluster. The **Distributed Tensor (DTensor)** data model expresses N-dimensional parallelism through `DeviceMesh` and `Placements` that every operator understands natively. And the **Eager Graph Architecture** is the asynchronous engine that turns these declarative descriptions into efficient, overlapping execution across devices. Under the hood, DTorch runs on **LibTorch** (PyTorch's C++ library) as its compute backend, matching PyTorch's operators, numerics, and performance.
 
 ### 1. Single-Client Single-Controller Multi-Worker
 
 An asynchronous execution model with three cooperating roles:
 
 ```
-┌──────────────┐      async messages      ┌─────────────────┐     kernel queue     ┌───────────┐
-│  Client      │ ───────────────────────> │   Controller    │ ───────────────────> │  Worker   │
-│  (Python)    │                          │  (C++ MainNode) │                      │ (C++ Thr) │
-│              │ <── sync only on value ── │                 │ <─ sync only on val ─│           │
-└──────────────┘                          └─────────────────┘                      └───────────┘
-```
+┌──────────┐       async messages       ┌────────────┐       kernel queue        ┌────────┐
+│ Client   │ ─────────────────────────> │ Controller │ ──────────────────────-─> │ Worker │
+│ (Python) │                            │ (C++)      │                           │ (C++)  │
+│          │ <── sync when get value ── │            │ <─ sync when get value -─ │        │
+└──────────┘                            └────────────┘                           └────────┘
+``` 
 
 The **Client** (a single-threaded Python process) creates DTensor symbols and operators, serialized and sent asynchronously. The **Controller** (one `MainNode` per cluster, one `WorkerNode` per machine) builds the logical graph and manages all compute resources. Each **Worker** is a C++ thread bound to a CUDA stream that executes kernels in order. The pipeline is fully asynchronous and **synchronizes only when a tensor value is read**.
 
