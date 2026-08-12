@@ -6,6 +6,10 @@
 
 **DTorch is an easy-to-use distributed inference API for PyTorch.** No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-device code, then make one small change: replace `Tensor` by `DTensor`. DTorch will automatically handle resource management, scheduling, and communication.
 
+---
+
+## Example
+
 For example, here is how to shard a tensor across two GPUs — the same task written both ways:
 
 <table>
@@ -114,5 +118,5 @@ The **Client** (a single-threaded Python process) creates DTensor symbols and op
 ### 3. Eager Graph Architecture
 
 A four-layer engine — *graph representation → kernel runtime → Eager Graph engine → collective communication* — that exposes a simple eager API while gaining graph-level optimizations. The Client emits incremental sub-graphs asynchronously; the Controller rewrites and executes them with a three-level concurrency model (between graphs, between operators, and within operators).
-
+  
 ---

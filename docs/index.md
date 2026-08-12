@@ -1,41 +1,81 @@
 # DTorch
 
-**DTorch** 是一个基于 **Single-Controller** 与 **Distributed Tensor** 架构的分布式深度学习 API，为 PyTorch 提供高性能分布式计算能力。用户可以在**不修改代码逻辑**的前提下，将单卡 PyTorch 程序扩展到多卡分布式环境。
-
-- **语言**：C++（核心引擎）、Python（框架层与用户接口）
-- **计算后端**：LibTorch（PyTorch C++ 算子库）
-- **通信**：NCCL（GPU 集合通信）、ZMQ（节点间消息传递）、gRPC（集群 RPC）
-- **构建系统**：CMake + scikit-build + nanobind
+**DTorch is an easy-to-use distributed inference API for PyTorch.** No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-device code, then make one small change: replace `Tensor` by `DTensor`. DTorch will automatically handle resource management, scheduling, and communication.
 
 ---
 
-## 三大核心设计理念
+## Example
+For example, here is how to shard a tensor across two GPUs — the same task written both ways:
 
-### Single-Client Single-Controller Multi-Worker
+<table>
+<thead>
+<tr>
+<th>DTorch (single-thread)</th>
+<th>PyTorch (multi-process)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td valign="top">
 
-异步分布式执行模型：Python Client 创建 DTensor 与 Operator 并异步发送，C++ MainNode 统一构建计算图、管理全部计算资源，每个 Worker 绑定一个 CUDA Stream 按序执行 Kernel。
+```python
+# Launch: python3 test.py
 
-→ [设计理念](developer_guide/design_concept.md) · [Single-Controller 架构](developer_guide/single_controller.md)
+import dtorch
 
-### Distributed Tensor (DTensor)
+shape = (4, 3)
+mesh = dtorch.DeviceMesh("cpu", [0, 1])
+placements = [dtorch.Shard(0)]
+x = dtorch.rand(shape, device_mesh=mesh,
+                placements=placements)
 
-通过 `DeviceMesh` 与 `Placements`（Shard / Replicate / Partial）原生支持 N-D 并行，统一表达 Data Parallel、Tensor Parallel、Context Parallel、Pipeline Parallel、Expert Parallel、ZeRO 等所有并行策略。
+print(f"{x=}")
+```
 
-→ [Distributed Tensor](user_guide/distributed_tensor.md)
+</td>
+<td valign="top">
 
-### Eager Graph Architecture
+```python
+# PyTorch needs torchrun to launch several processes.
+# Launch: torchrun --standalone --nnodes=1 --nproc-per-node=2 test.py
 
-融合 Eager Mode（简洁接口）与 Graph Mode（全局优化）的四层执行引擎：计算图表示 → Kernel 运行时 → Eager Graph 引擎 → 集合通讯组件，三级异步流水线，仅取值时同步。
+import torch
+import torch.distributed as dist
 
-→ [Eager Graph 架构](developer_guide/eager_graph_architecture/eager_graph_architecture.md)
+dist.init_process_group('nccl')
+world_size = dist.get_world_size()
+rank = dist.get_rank()
+
+torch.cuda.set_device(rank)
+
+shape = (4, 3)
+rows = shape[0] // world_size
+x = torch.rand((rows, shape[1]), device='cuda')
+
+print(f"{rank=}, x: {x.shape}, {x.device}")
+
+all_x = [torch.zeros_like(x) for _ in range(world_size)]
+dist.all_gather(all_x, x)
+all_x = torch.concat(all_x, dim=0)
+
+print(f"{rank=}, all_x: {all_x.shape=}, {all_x.device}")
+
+dist.destroy_process_group()
+```
+
+</td>
+</tr>
+</tbody>
+</table>
 
 ---
 
-## 快速链接
+## Highlights
 
-| 我想… | 去哪里 |
-|---|---|
-| 构建项目 | [构建指南](get_started/how_to_build.md) |
-| 跑测试 | [测试指南](get_started/test.md) |
-| 了解 Python API 与 DTensor | [Python API](user_guide/python_api.md) |
-| 浏览整体架构 | [总体架构](developer_guide/architecture.md) |
+- 🔥 **Easy to Use.** By far the easiest-to-use distributed API for PyTorch — just like writing single-device PyTorch code. You describe the distributed computation as ordinary PyTorch code on a single thread, and the framework automatically handles task dispatch, scheduling, and communication across the cluster. (This makes it easy to orchestrate heterogeneous workloads — placing different models on different GPUs, or interleaving inference and training across RL rollouts and updates.)
+- **Single-Controller.** One python thread drives the entire cluster — no multi-process launch, no SPMD, no `ProcessGroup`. 
+- **DTensor Native.** Every tensor in DTorch is a `DTensor`, and every operator works on it natively. No manual shape sharding, no manual `all_gather` across ranks — you just declare the tensor and print it directly. 
+- **PyTorch-compatible API.** DTorch provides an API consistent with PyTorch — tensors, operators, modules, and dtypes map one-to-one.
+- **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring), Pipeline Parallel and Expert Parallel — all expressible in the same code, and **freely composable**.
+- **Asynchronous Computation.** DTorch uses asynchronous execution to overlap the distributed system's scheduling overhead with computation. This also provides a range of performance-optimization opportunities.
+- **Lower CPU overhead.** Benefiting from DTorch's asynchronous execution, the Python thread only constructs compute nodes — it never executes them directly. Combined with awaitable `TensorFuture`s, this keeps the interpreter light and minimizes GPU idle time caused by slow CPU-side kernel launches.
