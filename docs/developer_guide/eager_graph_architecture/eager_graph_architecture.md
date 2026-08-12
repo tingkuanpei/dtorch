@@ -289,7 +289,7 @@ DTorch 提供了异步获取 Tensor 值的机制，进一步降低了系统的�
 |---|---|
 | [design_concept.md](../design_concept.md) | DTorch 三大核心设计理念 |
 | [single_controller.md](../single_controller.md) | Single-Client Single-Controller Multi-Worker 架构 |
-| [distributed_tensor.md](../../user_guide/distributed_tensor.md) | DTensor 的 DeviceMesh 与 Placements 机制 |
+| [distributed_tensor.md](../distributed_tensor.md) | DTensor 的 DeviceMesh 与 Placements 机制 |
 | [logical_graph_representation.md](logical_graph_representation.md) | Layer 1: 计算图表示 — Operand / Operator / LogicalGraph |
 | [kernel_runtime.md](kernel_runtime.md) | Layer 2: Kernel 运行时 — Blob / Kernel / KernelStream |
 | [eager_graph_engine.md](eager_graph_engine.md) | Layer 3: Eager Graph 引擎 — GraphConstructor → EagerGraphExecutor → Runner |

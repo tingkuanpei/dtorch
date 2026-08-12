@@ -18,7 +18,7 @@ script/install_grpc_ubuntu.sh
 **② 预装构建工具与 `torch`**。
 
 ```bash
-pip install scikit-build-core "torch==2.8.0 cmake==4.3.2"
+pip install scikit-build-core torch==2.8.0 cmake==4.3.2
 ```
 
 **③ 可编辑安装**。此步会自动装入其余运行依赖（`diffusers`、`transformers`、`numpy`、`accelerate` 等）：

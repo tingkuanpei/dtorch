@@ -67,7 +67,7 @@ DTorch 围绕三大核心设计理念构建。详见 [设计理念文档](design
 
 ### 2. Distributed Tensor (DTensor)
 
-通过 `DeviceMesh` 和 `Placements` 原生支持 N-D 并行，详见 [Distributed Tensor 文档](../user_guide/distributed_tensor.md)。
+通过 `DeviceMesh` 和 `Placements` 原生支持 N-D 并行，详见 [Distributed Tensor 文档](distributed_tensor.md)。
 
 - **DeviceMesh** (`dtorch/api/cpp/distributed_spec.h`): N 维设备网格，描述集群 GPU 拓扑
 - **Placements**: 三种分布策略 — `Shard(dim)`（切分）、`Replicate()`（复制）、`Partial()`（部分聚合）
@@ -161,10 +161,11 @@ python/dtorch/
 
 | 文档 | 内容 |
 |---|---|
-| [python_api.md](../user_guide/python_api.md) | Python API 使用指南：Tensor 创建、算子调用、DTensor 原生支持、Placements 推导、Redistribute、DP/TP 示例 |
+| [python_api_overview.md](../user_guide/python_api_overview.md) | Python API 使用指南：Tensor 创建、算子调用、DTensor 原生支持、Placements 推导、Redistribute、单卡模拟分布式、异步取值 |
+| [module_parallel.md](../user_guide/module_parallel.md) | Module 并行指南：Linear 的 tp_dim / tp_shard_type、ColumnParallelLinear / RowParallelLinear 子类、Llama DP+TP 完整示例 |
 | [applications.md](../user_guide/applications.md) | 扩散模型推理应用：目录结构、DTorch API 适配修改、ExecuteConfig、分布式、Cache、量化、算子融合 |
 | [design_concept.md](design_concept.md) | 三大核心设计理念详解（Single-Controller、DTensor、Eager Graph） |
-| [distributed_tensor.md](../user_guide/distributed_tensor.md) | DTensor 的 DeviceMesh 与 Placements 机制，含完整代码示例 |
+| [distributed_tensor.md](distributed_tensor.md) | DTensor 的 DeviceMesh 与 Placements 机制，含完整代码示例 |
 | [test.md](../get_started/test.md) | 测试指南：Python 单元测试、C++ 单元测试 (gtest)、应用测试（Flux/SD3） |
 | [how_to_build.md](../get_started/how_to_build.md) | 构建与开发环境配置 |
 | [single_controller.md](single_controller.md) | Single-Client Single-Controller Multi-Worker 架构详解，与 Multi-Controller 对比 |

@@ -80,12 +80,15 @@ nav:
   - DTorch: index.md
   - Get Started: get_started/get_started.md
   - User Guide:
-      - Distributed Tensor (DTensor): user_guide/distributed_tensor.md
-      - Python API: user_guide/python_api.md
+      - User Guide: user_guide/user_guide.md
+      - Distributed Tensor: user_guide/distributed_tensor_overview.md
+      - Python API OverView: user_guide/python_api_overview.md
+      - Module 并行: user_guide/module_parallel.md
   - Developer Guide:
       - 总体架构: developer_guide/architecture.md
       - 设计理念: developer_guide/design_concept.md
       - Single-Controller 架构: developer_guide/single_controller.md
+      - Distributed Tensor: developer_guide/distributed_tensor.md
       - Eager Graph 架构:
           - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
           - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md

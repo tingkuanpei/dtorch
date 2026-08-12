@@ -29,4 +29,4 @@ Operator 是 DTorch 计算图中的**计算节点**，封装了单个操作（�
 
 ## 3. 相关文档
 
-- [Distributed Tensor](../../user_guide/distributed_tensor.md) — DTensor 的 DeviceMesh 与 Placements 机制
+- [Distributed Tensor](../distributed_tensor.md) — DTensor 的 DeviceMesh 与 Placements 机制
