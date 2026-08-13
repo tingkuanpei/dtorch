@@ -21,20 +21,20 @@ Eager Graph Architecture 采用分层设计，从逻辑表示到底层通信形�
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                          Eager Graph 引擎 (Layer 3)                            │
-│  GraphConstructor → EagerGraphExecutor → RunnerBase (4 种派生 Runner)         │
-│  消息队列驱动，异步消费 Operator，管理计算图生命周期                            │
+│                           GraphExecutor (Layer 3)                            │
+│  GraphConstructor → EagerGraphExecutor → NodeRunnerBase (具体子类)           │
+│  消息队列驱动，异步消费 Operator，管理计算图生命周期                         │
 │                                                                              │
-│  单机多线程：PerDeviceThreadNodeRunner → NaiveRunner (kMemory store)          │
-│  单机多进程：PerDeviceProcessNodeRunner → ZMQ PUB-SUB/REQ-REP → 子进程        │
+│  单机多线程：PerDeviceThreadNodeRunner → NaiveRunner (kMemory store)         │
+│  单机多进程：PerDeviceProcessNodeRunner → RemoteRunnerInProcess → GPU 子进程 │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│              计算图表示 (Layer 1)              Kernel 运行时 (Layer 2)          │
+│              计算图表示 (Layer 1)              Kernel 运行时 (Layer 2)       │
 │  Operand / Operator / LogicalGraph            Blob / Kernel / KernelStream   │
-│  DAG 拓扑结构，元信息推导                      物理内存容器，异步执行流          │
+│  DAG 拓扑结构，元信息推导                      物理内存容器，异步执行流      │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│                           集合通讯组件 (Layer 4)                               │
-│  ThreadGroup (集合通信原语)  /  TensorStore (跨线程张量交换)                    │
-│  AllReduce, AllGather, ReduceScatter ...       Memory / File / Network        │
+│                            集合通讯组件 (Layer 4)                            │
+│  ThreadGroup (集合通信原语)  /  TensorStore (跨线程张量交换)                 │
+│  AllReduce, AllGather, ReduceScatter ...       Memory / File / Network       │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -42,7 +42,7 @@ Eager Graph Architecture 采用分层设计，从逻辑表示到底层通信形�
 |---|---|---|
 | **Layer 1: 计算图表示** | [logical_graph_representation.md](logical_graph_representation.md) | 用 Operand（数据节点）和 Operator（计算节点）构建 DAG，表达计算逻辑的元信息 |
 | **Layer 2: Kernel 运行时** | [kernel_runtime.md](kernel_runtime.md) | 将 Operator 转化为可执行的 Kernel，通过 Blob 管理物理内存，在 KernelStream 上异步执行 |
-| **Layer 3: Eager Graph 引擎** | [eager_graph_engine.md](eager_graph_engine.md) + [eager_graph_engine_in_cluster.md](eager_graph_engine_in_cluster.md) | 消息驱动的执行管线：GraphConstructor → EagerGraphExecutor → RunnerBase（4 种派生类），支持单机多线程和单机多进程两种模式 |
+| **Layer 3: GraphExecutor** | [graph_executor.md](graph_executor.md) + [graph_executor_in_cluster.md](graph_executor_in_cluster.md) | 消息驱动的执行管线：GraphConstructor → EagerGraphExecutor → NodeRunnerBase（具体子类），支持单机多线程和单机多进程两种模式 |
 | **Layer 4: 集合通讯组件** | [tensor_communicate.md](../communicate/tensor_communicate.md) | 提供 ThreadGroup（集合通信）和 TensorStore（跨线程张量交换），支撑分布式 DTensor 的 Placement 变换 |
 
 ---
@@ -115,13 +115,13 @@ Runner::Execute()
 
 ---
 
-## Layer 3: Eager Graph 引擎
+## Layer 3: GraphExecutor
 
-**文档**: [eager_graph_engine.md](eager_graph_engine.md)（单机多线程） + [eager_graph_engine_in_cluster.md](eager_graph_engine_in_cluster.md)（单机多进程）
+**文档**: [graph_executor.md](graph_executor.md)（单机多线程） + [graph_executor_in_cluster.md](graph_executor_in_cluster.md)（单机多进程）
 
-Eager Graph 引擎是 Single-Controller 架构中 **Controller** 的实现，负责串联 Layer 1 的图表示和 Layer 2 的 Kernel 运行时。它通过消息队列驱动 `AsyncMain` 线程消费 Operator、构建 LogicalGraph、分发给 Runner 执行。
+GraphExecutor 是 Single-Controller 架构中 **Controller** 的实现，负责串联 Layer 1 的图表示和 Layer 2 的 Kernel 运行时。它通过消息队列驱动 `AsyncMain` 线程消费 Operator、构建 LogicalGraph、分发给 Runner 执行。
 
-引擎支持两种部署模式，由 `GraphOption::perDevicePerProcess` 控制：
+GraphExecutor 支持两种部署模式，由 `GraphOption::perDevicePerProcess` 控制：
 
 ```
 单机多线程 (perDevicePerProcess = false):             单机多进程 (perDevicePerProcess = true):
@@ -130,39 +130,40 @@ GraphConstructor                                        GraphConstructor
       │                                                       │
       ▼                                                       ▼
 EGEMessageQueue (同进程)                              EagerGraphExecutor
-      │                                                ├── RemoteRunnerPublisher (PUB)
-      ▼                                                │   广播算子到所有 GPU 子进程
-EagerGraphExecutor                                    │
-      │                                                └── PerDeviceProcessNodeRunner
-      ▼                                                     ├── NaiveRunner (CPU)
-PerDeviceThreadNodeRunner                                  │
-      │                                                    └── RemoteRunnerClient (REQ)
-      ▼                                                     │    点对点取 Tensor / Sync
-NaiveRunner                                                  │
-      │                                     ════════════════╪══════════════════
-      ▼                                                     ▼
-KernelStream::LaunchKernel()                  Child Process (per GPU)
-      │                                       RemoteRunnerServer (SUB + REP)
-      ▼                                            │
-CUDA Stream / CPU Thread 执行 Kernel              ▼
-                                              NaiveRemoteRunner
-                                                   │
-                                                   ▼
-                                              NaiveRunner (GPU)
+      │                                                       │
+      ▼                                                       ├── RemoteRunnerPublisher (PUB)
+EagerGraphExecutor                                           │   广播 Execute / Destroy
+      │                                                       │
+      ▼                                                       └── PerDeviceProcessNodeRunner
+PerDeviceThreadNodeRunner                                         ├── NaiveRunner (CPU)
+      │                                                           │
+      ▼                                                           └── RemoteRunnerInProcess (per GPU)
+NaiveRunner                                                              fork/exec 拉起子进程
+      │                                                                    │
+      ▼                                       ════════════════════════════╪═══════════════
+KernelStream::LaunchKernel()                  Child Process (per GPU)    ▼
+      │                                       RemoteRunner
+      ▼                                         ├── RemoteRunnerSubscriber (SUB)  ← Execute 广播
+CUDA Stream / CPU Thread 执行 Kernel            ├── RemoteRunnerPusher (PUSH: devicesReady)
+                                                └── NaiveRunner (GPU)
+                                                       │
+                                                       ▼
+                                                  KernelStream::LaunchKernel()
 ```
 
-**RunnerBase 统一接口**：`RunnerBase`（`dtorch/core/runner/runner_base.h`）定义三个纯虚函数 —— `Execute()`、`GetTorchTensor()`、`Sync()`。4 个派生类覆盖全部场景：
+**NodeRunnerBase 统一接口**：`NodeRunnerBase`（`dtorch/core/runner/node_runner_base.h`）是所有 NodeRunner 的抽象基类，仅声明一个纯虚函数 `Execute(ops, noHoldOperands)`。其下各类分工协作覆盖全部场景：
 
-| 派生类 | 场景 | 实现方式 |
+| 类 | 角色 | 实现方式 |
 |---|---|---|
-| `PerDeviceThreadNodeRunner` | 单机多线程 | 委托 `NaiveRunner`（`kMemory` store） |
-| `PerDeviceProcessNodeRunner` | 单机多进程 | CPU: `NaiveRunner`（`kFile` store）；GPU: 通过 ZMQ 子进程 |
-| `RemoteRunnerClient` | 父进程与子进程通信 | ZMQ REQ-REP（取 Tensor IPC 句柄、同步） |
-| `WorkerNodeMultiGraphExecutorClient` | 多机集群（预留） | RPC 通信 |
+| `PerDeviceThreadNodeRunner` | NodeRunnerBase 子类（单机多线程） | 持有 `NaiveRunner`（`kMemory` store），委托执行 |
+| `PerDeviceProcessNodeRunner` | NodeRunnerBase 子类（单机多进程） | CPU 持有 `NaiveRunner`；每张 GPU 由 `RemoteRunnerInProcess` 拉起子进程 `RemoteRunner` |
+| `NaiveRunner` | 核心执行引擎 | Operator → Kernel 转换、Blob 管理、KernelStream 调度 |
+| `RemoteRunner` | 子进程执行引擎 | 子进程内 `NaiveRunner` + `RemoteRunnerSubscriber`(SUB) + `RemoteRunnerPusher`(PUSH) |
+| `WorkerNodeMultiGraphNodeRunner` | 多机集群（预留） | 每个 WorkerNode 持有一个 `PerDeviceProcessNodeRunner` |
 
-**单机多线程模式**：[eager_graph_engine.md](eager_graph_engine.md)。`GraphConstructor` 将 Operator 封装为异步 `EGEMessage`，`EagerGraphExecutor::AsyncMain` 消费消息 → 构建 `LogicalGraph` → `PerDeviceThreadNodeRunner` 委托 `NaiveRunner` 将 Operator 转为 Kernel 发射执行。消息队列分两种：异步消息（不阻塞 Producer）和同步消息（仅取 Tensor 值时阻塞）。
+**单机多线程模式**：[graph_executor.md](graph_executor.md)。`GraphConstructor` 将 Operator 封装为异步 `EGEMessage`，`EagerGraphExecutor::AsyncMain` 消费消息 → 构建 `LogicalGraph` → `PerDeviceThreadNodeRunner` 委托 `NaiveRunner` 将 Operator 转为 Kernel 发射执行。消息队列分两种：异步消息（不阻塞 Producer）和同步消息（仅取 Tensor 值时阻塞）。
 
-**单机多进程模式**：[eager_graph_engine_in_cluster.md](eager_graph_engine_in_cluster.md)。每张 GPU 运行在独立子进程中（`fork`/`exec`），通过 ZMQ IPC 双通道通信——PUB-SUB 一对多广播算子，REQ-REP 一对一取 Tensor IPC 句柄和同步确认。新增组件：`RemoteRunnerPublisher`（广播端）、`RemoteRunnerServer`（子进程收发端）、`RemoteRunnerClient`（父进程 REQ 端）、`NaiveRemoteRunner`（子进程执行引擎，维护 `uintptr_t → Operand` 指针映射）。
+**单机多进程模式**：[graph_executor_in_cluster.md](graph_executor_in_cluster.md)。每张 GPU 运行在独立子进程中（`fork`/`exec`），由 `RemoteRunnerInProcess` 拉起并管理生命周期。`EagerGraphExecutor` 持有 `RemoteRunnerPublisher`（PUB）广播 `Execute`/`Destroy`；子进程的 `RemoteRunner` 经 `RemoteRunnerSubscriber`（SUB）接收算子并交由内部 `NaiveRunner` 执行，启动时经 `RemoteRunnerPusher`（PUSH）回报 `devicesReady`。
 
 两种模式对上层 Python API 完全透明。
 
@@ -251,11 +252,12 @@ Layer 2: Kernel::Run()
     ├── Compute() → Operator::Compute() → LibTorch 算子
     └── 将输出 torch::Tensor 写回 Blob
     │
-    ▼  (仅获取 Tensor 值时触发同步)
-Layer 3: EagerGraphExecutor::RespondGetTensor()
-    └── NaiveRunner::GetTorchTensor()
-        ├── Layer 2: mStreamManager.Sync()  ← 等待所有 CUDA Stream 完成
-        └── return mOperandToBlobs[operand][deviceId].GetTensor()
+    ▼  (仅获取 Tensor 值时触发：插入 GetTensorOp)
+Layer 3: EagerGraphExecutor → Runner::Execute([get_tensor_op])
+    └── GetTensorOp::Compute()
+        ├── 从 Blob 读取 c 的 torch::Tensor
+        ├── (CUDA) 记录 Event → 后台线程等待 Event 就绪
+        └── promise->SetValue(tensor) → 唤醒阻塞在 future.get() 的 Producer 线程
 ```
 
 ---
@@ -292,9 +294,9 @@ DTorch 提供了异步获取 Tensor 值的机制，进一步降低了系统的�
 | [distributed_tensor.md](../distributed_tensor.md) | DTensor 的 DeviceMesh 与 Placements 机制 |
 | [logical_graph_representation.md](logical_graph_representation.md) | Layer 1: 计算图表示 — Operand / Operator / LogicalGraph |
 | [kernel_runtime.md](kernel_runtime.md) | Layer 2: Kernel 运行时 — Blob / Kernel / KernelStream |
-| [eager_graph_engine.md](eager_graph_engine.md) | Layer 3: Eager Graph 引擎 — GraphConstructor → EagerGraphExecutor → Runner |
+| [graph_executor.md](graph_executor.md) | Layer 3: GraphExecutor — GraphConstructor → EagerGraphExecutor → Runner |
 | [tensor_communicate.md](../communicate/tensor_communicate.md) | Layer 4: 集合通讯组件 — ThreadGroup / TensorStore |
-| [eager_graph_engine_in_cluster.md](eager_graph_engine_in_cluster.md) | 集群场景：多机多进程执行管线 |
-| [zmq.md](../communicate/zmq.md) | ZMQ 通信机制：PUB-SUB + REQ-REP 双通道 |
+| [graph_executor_in_cluster.md](graph_executor_in_cluster.md) | 集群场景：多机多进程执行管线 |
+| [zmq.md](../communicate/zmq.md) | ZMQ 通信机制：PUB-SUB + PUSH-PULL 双通道 |
 | [python_kernel.md](python_kernel.md) | 在 C++ Kernel 中调用 Python 代码 |
 | [async_get_tensor.md](async_get_tensor.md) | 异步获取 Tensor 值：Promise/Future 机制、GetTensorOp、File/Memory 实现 |

@@ -548,35 +548,36 @@ Operator[]  ──→  OperatorSerializationPack[]  ──→  BinaryOArchive  �
 
 **`noHoldOperands` 的作用**：某些 Operand 仅用于临时传递（如返回给 Client 的结果张量），Worker 执行完对应的读取操作后即可释放。这些 Operand 的指针也被序列化发送，Worker 端在 `ExecuteSerialization` 执行后将其从 `mOperandMap` 中移除。
 
-### 3.2 接收端：RemoteRunnerServer → NaiveRemoteRunner
+### 3.2 接收端：RemoteRunner
 
-**源文件**: `dtorch/external/zmq/remote_runner_server.cc:135`, `dtorch/core/runner/naive_remote_runner.cc:21`
+**源文件**: `dtorch/core/runner/remote/remote_runner.cc:67`
 
-Worker 端的 `RemoteRunnerServer` 通过 ZMQ SUB socket 接收消息，反序列化后交给 `NaiveRemoteRunner` 执行。
+Worker 端的 `RemoteRunner` 在 `AsyncMain` 循环中通过 `RemoteRunnerSubscriber`（SUB socket）非阻塞接收消息；收到 `publisherExecute` 后反序列化，并交给内部的 `NaiveRunner` 执行。
 
 #### Step 1: ZMQ 层接收与反序列化
 
 ```cpp
-// dtorch/external/zmq/remote_runner_server.cc:135
-void RemoteRunnerServer::ProcessSubscriberExecuteMessage(const std::string& serializedData) {
+// dtorch/core/runner/remote/remote_runner.cc:67
+void RemoteRunner::ProcessSubscriberExecuteMessage(const std::string& serializedData) {
     std::vector<core::OperatorSerializationPack> opPacks;
     std::vector<uintptr_t> noHoldOperandPtrs;
 
     // Boost BinaryIArchive 反序列化
     std::stringstream ss(serializedData, std::ios::in | std::ios::binary);
-    boost::BinaryIArchive bia(ss);
+    external::boost::BinaryIArchive bia(ss);
     bia >> opPacks;
     bia >> noHoldOperandPtrs;
+    DDebugAssert(opPacks.size() + noHoldOperandPtrs.size() > 0);
 
-    mImplPtr->mNaiveRemoteRunner.ExecuteSerialization(opPacks, noHoldOperandPtrs);
+    ExecuteSerialization(opPacks, noHoldOperandPtrs);
 }
 ```
 
 #### Step 2: 重建 Operator 并执行
 
 ```cpp
-// dtorch/core/runner/naive_remote_runner.cc:21
-void NaiveRemoteRunner::ExecuteSerialization(
+// dtorch/core/runner/remote/remote_runner.cc:79
+void RemoteRunner::ExecuteSerialization(
     const std::vector<OperatorSerializationPack>& opPacks,
     const std::vector<uintptr_t>& uintNoHoldOperands) {
 
@@ -596,6 +597,7 @@ void NaiveRemoteRunner::ExecuteSerialization(
 
         // Step 2c: 将输出 Operand 注册到 mOperandMap
         OperandArray outputOperands = op->GetOutputOperands();
+        DAlwaysAssert(outputOperands.size() == opPack.uintOutputOperands.size());
         for (size_t i = 0; i < outputOperands.size(); i++) {
             mOperandMap[opPack.uintOutputOperands[i]] = outputOperands[i];
         }
@@ -605,27 +607,28 @@ void NaiveRemoteRunner::ExecuteSerialization(
     // Step 2d: 收集 noHoldOperands，完成后从 map 移除
     std::vector<const Operand*> noHoldOperands;
     for (auto it : uintNoHoldOperands) {
+        DAlwaysAssert(mOperandMap.count(it) > 0);
         noHoldOperands.push_back(mOperandMap[it].get());
         mOperandMap.erase(it);
     }
 
     // Step 2e: 提交给 NaiveRunner 执行
-    Execute(ops, noHoldOperands);
+    Execute(ops, noHoldOperands);  // → mNaiveRunner.Execute()
 }
 ```
 
 **反序列化流程图**：
 
 ```
-ZMQ SUB (3-frame multipart)
+RemoteRunnerSubscriber.Get()  (ZMQ SUB, 3-frame multipart)
   │
-  ├─ Frame 0: messageId     ──→  校验消息顺序
+  ├─ Frame 0: messageId     ──→  校验消息顺序（id == 上一次 + 1）
   ├─ Frame 1: "publisherExecute"
   └─ Frame 2: binary data   ──→  BinaryIArchive  ──→  OperatorSerializationPack[]
                                                               │
                                     ┌─────────────────────────┘
                                     ▼
-                           NaiveRemoteRunner::ExecuteSerialization()
+                           RemoteRunner::ExecuteSerialization()
                                     │
                   ┌─────────────────┼─────────────────┐
                   ▼                 ▼                  ▼
@@ -636,6 +639,7 @@ ZMQ SUB (3-frame multipart)
                                     ▼
                           NaiveRunner::Execute(ops, noHoldOperands)
 ```
+
 
 ### 3.3 Operand 指针映射机制
 
@@ -712,6 +716,6 @@ Operand* (0x7f...256)  ── uintptr_t ──→  mOperandMap[0x7f...256] = sha
 | `dtorch/core/operators/standard/*.h` | 各算子 *Param 派生类的序列化实现 |
 | `dtorch/external/zmq/remote_runner_publisher.cc` | 序列化发送端 |
 | `dtorch/external/zmq/remote_runner_publisher.h` | RemoteRunnerPublisher 接口 |
-| `dtorch/external/zmq/remote_runner_server.cc` | ZMQ 层反序列化接收 |
-| `dtorch/core/runner/naive_remote_runner.cc` / `.h` | 反序列化后 Operator 重建与执行 |
+| `dtorch/external/zmq/remote_runner_subscriber.cc` / `.h` | ZMQ SUB 接收端（RemoteRunnerSubscriber） |
+| `dtorch/core/runner/remote/remote_runner.cc` / `.h` | 反序列化后 Operator 重建与执行（RemoteRunner） |
 | `dtorch/tests/test_serialization.cc` | 序列化单元测试 |

@@ -93,5 +93,5 @@ nav:
           - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
           - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md
           - Layer 2 · Kernel 运行时: developer_guide/eager_graph_architecture/kernel_runtime.md
-          - Layer 3 · Eager Graph 引擎（单机多线程）: developer_guide/eager_graph_architecture/eager_graph_engine.md
+          - Layer 3 · GraphExecutor: developer_guide/eager_graph_architecture/graph_executor.md
           - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate.md

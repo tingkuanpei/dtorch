@@ -53,17 +53,33 @@ void GetTensorOp::Compute(const TorchTensorOptArray& inputs, TorchTensorArray& o
 
     const auto& param = GetOpParam<GetTensorParam>();
     DAlwaysAssert(param.promise);
+    // NullTensor can't get tensor
     DAlwaysAssert(inputs[0].has_value());
 
     if (inputs[0].value().is_cuda()) {
-        // 确保该设备上所有 CUDA stream 的计算已完成再跨线程/进程传递
-        torch::cuda::synchronize(inputs[0].value().get_device());
+        // 在当前 stream 上记录 Event，以便只等待该 stream 的计算完成（而非整卡）。
+        Device localDevice(DeviceKind::kGpu, inputs[0].value().get_device());
+        auto stream = external::device::DeviceStream::GetCurrentStream(localDevice);
+        auto event = external::device::DeviceEvent::CreateDeviceEvent(localDevice.deviceKind);
+        event->Record(stream);
+
+        // 将 tensor 和 promise 的所有权转移到后台线程：线程池轮询 Event，一旦就绪
+        // 就在普通 CPU 线程上调用 SetValue（CUDA IPC 函数只允许在非 CUDA 线程调用）。
+        auto tensor = std::make_shared<torch::Tensor>(inputs[0].value());
+        auto promise = std::move(param.promise);
+        external::boost::BoostAsioThreadPool::GetInstance().Post(
+            [event = std::move(event), tensor, promise = std::move(promise)]() {
+                event->Synchronize();
+                promise->SetValue(tensor);
+            });
+    } else {
+        param.promise->SetValue(std::make_shared<torch::Tensor>(inputs[0].value()));
     }
-    param.promise->SetValue(std::make_shared<torch::Tensor>(inputs[0].value()));
 }
 ```
 
-CUDA `synchronize` 是关键步骤：Worker 计算使用的 CUDA stream 可能不同于生产者 stream，跨线程/进程传递张量前必须确保该设备上所有 stream 已完成，否则 Future 端可能拿到未完成计算的数据。
+对 CUDA 张量，先在当前 stream 上记录 `DeviceEvent`，再把 tensor 和 promise 投递到 `BoostAsioThreadPool` 后台线程：线程池等待 Event 就绪后，在普通 CPU 线程上调用 `promise->SetValue()`。这样做有两个原因：(1) 用 Event 等待只阻塞到该 stream 完成，而非整卡 `synchronize`；(2) CUDA IPC 函数（跨进程共享显存句柄）只允许在非 CUDA 线程调用，因此必须在后台线程池中完成 SetValue。CPU 张量则直接同步 `SetValue`。
+
 
 ---
 

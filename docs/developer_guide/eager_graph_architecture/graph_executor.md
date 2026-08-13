@@ -1,6 +1,6 @@
-# Eager Graph Engine
+# GraphExecutor
 
-DTorch 的 Eager Graph 执行引擎由四层核心组件构成，负责将用户 API 调用转换为可执行的 Kernel 并在设备上调度执行。本文档介绍单机多线程场景下的执行管线：**GraphConstructor** → **EagerGraphExecutor** → **PerDeviceThreadNodeRunner** → **NaiveRunner**。
+DTorch 的 GraphExecutor 由四层核心组件构成，负责将用户 API 调用转换为可执行的 Kernel 并在设备上调度执行。本文档介绍单机多线程场景下的执行管线：**GraphConstructor** → **EagerGraphExecutor** → **PerDeviceThreadNodeRunner** → **NaiveRunner**。
 
 ---
 
@@ -16,7 +16,7 @@ DTorch 的 Eager Graph 执行引擎由四层核心组件构成，负责将用户
 ├──────────────────────────────────────────────────────────────────────┤
 │                    EagerGraphExecutor                                │
 │  AsyncMain 消息循环 → LogicalGraph 构建 → GraphTraversalSequence      │
-│  → RunnerBase::Execute()                                             │
+│  → NodeRunnerBase::Execute()                                             │
 ├──────────────────────────────────────────────────────────────────────┤
 │                    PerDeviceThreadNodeRunner (Runner)                │
 │  委托 NaiveRunner 执行                                                │
@@ -30,7 +30,7 @@ DTorch 的 Eager Graph 执行引擎由四层核心组件构成，负责将用户
 
 1. **GraphConstructor** 接收 Python API 调用，通过 `OperatorFactory` 创建 `Operator`，封装为 `EGEMessage` 推入消息队列。
 2. **EagerGraphExecutor** 的 `AsyncMain` 线程从消息队列消费消息，将 Operator 加入 `LogicalGraph`，按拓扑序遍历并调用 Runner 执行。
-3. **PerDeviceThreadNodeRunner** 作为 `RunnerBase` 的线程级实现，将所有调用委托给内部的 `NaiveRunner`。
+3. **PerDeviceThreadNodeRunner** 作为 `NodeRunnerBase` 的线程级实现，将所有调用委托给内部的 `NaiveRunner`。
 4. **NaiveRunner** 将 Operator 转换为 Kernel，管理 Blob 物理内存，通过 `KernelStream` 将 Kernel 发射到 CUDA Stream 或 CPU 线程执行。
 
 ---
@@ -178,25 +178,20 @@ class EagerGraphExecutor {
 ```
 while (true) {
     1. GetEagerGraphExecutorMessage()
-       → 从消息队列批量拉取消息，填充 mNewAddOperatorSequence /
-         mNewAddNoHoldOperand / mNewAddBlockMessage
+       → 从消息队列批量拉取消息，填充 mNewAddOperatorSequence / mNewAddNoHoldOperand
        → 每条消息通过虚函数 ProcessEGEMessage() 回调到 EagerGraphExecutor 的对应方法
+       → 若收到 Destroy 消息则置位 mGetDestroySignal
 
-    2. 构建 GraphTraversalSequence
-       → 将 mNewAddOperatorSequence 按拓扑序遍历，生成执行序列
+    2. if (mGetDestroySignal) break
 
-    3. RespondWaitMessageEarly()
-       → 如果用户仅请求 Wait 但没有待执行算子，提前响应
+    3. 构建 GraphTraversalSequence
+       → 将 mNewAddOperatorSequence 按拓扑序生成执行序列
 
     4. ExecuteOperatorsAndNoHoldOperands(traversalSeq, noHoldOperands)
-       → 从 LogicalGraph 取出 Operator shared_ptr
        → 调用所有 Runner 的 Execute(ops, noHoldOperands)
-       → 删除已执行的 Operator 和不再引用的 Operand
-
-    5. RespondWaitMessage()
-       → 如果有 GetTensor 请求 → 调用 Runner::GetTorchTensor() 获取值
-       → 如果有 Wait 请求 → 调用 Runner::Sync() 同步所有流
-       → 循环等待直到 main thread 不再阻塞
+       → 普通 Operator 被转为 Kernel 发射执行
+       → GetTensorOp 也在此时执行：Compute 从 Blob 读取 torch::Tensor，
+         通过 TensorPromise 唤醒阻塞在 future.get() 的 Producer 线程
 }
 ```
 
@@ -265,33 +260,33 @@ struct BlockEGEMessageCollections {
 
 ## 4. Runner 执行层
 
-### 4.1 RunnerBase — 抽象基类
+### 4.1 NodeRunnerBase — 抽象基类
 
-`RunnerBase` 定义了所有 Runner 的统一接口（`dtorch/core/runner/runner_base.h`）：
+`NodeRunnerBase` 定义了所有 Runner 的统一接口（`dtorch/core/runner/node_runner_base.h`）：
 
 ```cpp
-class RunnerBase {
+class NodeRunnerBase {
 public:
-    virtual void Execute(
-        const std::vector<std::shared_ptr<Operator>>& ops,
-        const std::vector<const Operand*>& noHoldOperands) = 0;
+    NodeRunnerBase() = default;
+    virtual ~NodeRunnerBase() = default;
 
-    virtual std::shared_ptr<torch::Tensor> GetTorchTensor(const Operand* operand) = 0;
+    DTORCH_DISABLE_COPY_AND_DEFAULT_MOVE(NodeRunnerBase);
 
-    virtual void Sync() = 0;
+    virtual void Execute(const std::vector<std::shared_ptr<Operator>>& ops,
+                         const std::vector<const Operand*>& noHoldOperands) = 0;
 };
 ```
 
-三个纯虚函数分别对应执行、取值、同步三类操作。
+仅一个纯虚函数 `Execute()`，由具体 NodeRunner 实现，负责将 Operator 转为 Kernel 并调度执行。
 
 ### 4.2 PerDeviceThreadNodeRunner — 单节点线程 Runner
 
-`PerDeviceThreadNodeRunner` 是 `RunnerBase` 的线程级实现，用于单机场景。它是一个**薄封装层**，将所有调用直接委托给内部的 `NaiveRunner`。
+`PerDeviceThreadNodeRunner` 是 `NodeRunnerBase` 的线程级实现，用于单机场景。它是一个**薄封装层**，将所有调用直接委托给内部的 `NaiveRunner`。
 
 源码位置：`dtorch/core/runner/per_device_thread_node_runner.h`
 
 ```cpp
-class PerDeviceThreadNodeRunner : public RunnerBase {
+class PerDeviceThreadNodeRunner : public NodeRunnerBase {
 public:
     PerDeviceThreadNodeRunner(const GraphOption& graphOption,
                               const RunnerSupportedDevices& supportedDevices)
@@ -299,12 +294,10 @@ public:
                        communication::TensorStoreConfig(
                            communication::TensorStoreType::kMemory)) {}
 
-    void Execute(...) override { mNaiveRunner.Execute(ops, noHoldOperands); }
-    std::shared_ptr<torch::Tensor> GetTorchTensor(...) override {
-        DDebugAssert(!operand->IsDistributed());
-        return mNaiveRunner.GetTorchTensor(operand);
+    DTORCH_FORCEINLINE void Execute(const std::vector<std::shared_ptr<Operator>>& ops,
+                                    const std::vector<const Operand*>& noHoldOperands) override {
+        mNaiveRunner.Execute(ops, noHoldOperands);
     }
-    void Sync() override { mNaiveRunner.Sync(); }
 
 private:
     NaiveRunner mNaiveRunner;
@@ -313,7 +306,7 @@ private:
 
 关键点：
 - 使用 `TensorStoreType::kMemory` — 多个 Kernel 间通过**内存**共享中间结果（而非共享内存文件）。
-- `GetTorchTensor` 断言 Operand 不是分布式的 — 因为从单个 Runner 只能获取本地非分布式 Tensor。
+- 仅实现 `Execute()`，将调用整体委托给内部的 `NaiveRunner`。
 
 ### 4.3 NaiveRunner — 核心执行引擎
 
@@ -329,7 +322,7 @@ private:
 | **Blob 管理** | 维护 `Operand → AllDeviceBlobs` 映射，管理物理显存的分配与释放 |
 | **KernelStream 管理** | 通过 `KernelStreamManager` 管理 CUDA Stream / CPU Stream 的创建与复用 |
 | **ThreadGroup 管理** | 通过 `ThreadGroupManager` 管理集合通信所需的线程组 |
-| **同步与取值** | `Sync()` 同步所有 Stream；`GetTorchTensor()` 从 Blob 中取出 `torch::Tensor` |
+| **取值与同步** | 取值由 `GetTensorOp`（系统算子）在 `Execute` 中完成（从 Blob 读取并通过 `TensorPromise` 返回）；流同步由 `KernelStreamManager::Sync()` 完成 |
 
 #### 4.3.2 关键数据结构
 
@@ -440,26 +433,6 @@ EagerGraphExecutor::AsyncMain()  // 消费者线程
     └── LogicalGraph::DeleteOperator(op)  // 执行后立即清理
 ```
 
-### 同步路径（仅在获取 Tensor 值时触发）
-
-```
-Python: value = c.item()
-    │
-    ▼
-GraphConstructor::GetSharedPtrTensor(c_operand)
-    └── EGEMessageQueue::PushMessageAndGetResult(GetTensorEEMsg)
-        │  (Producer 线程阻塞在 future.get())
-        │
-        ▼
-EagerGraphExecutor::AsyncMain()
-    ├── (执行完当前批次所有算子)
-    ├── RespondGetTensor()
-    │   └── mNodeRunners[0]->GetTorchTensor(c_operand)
-    │       └── NaiveRunner::GetTorchTensor()
-    │           ├── mStreamManager.Sync()  // 等待所有 CUDA Stream 完成
-    │           └── return mOperandToBlobs[operand][deviceId].GetTensor()
-    └── promise.set_value(tensor) → 唤醒 Producer 线程
-```
 
 ---
 
@@ -473,7 +446,7 @@ EagerGraphExecutor::AsyncMain()
 | 消息实现（`AddOperatorEEMsg` 等） | `dtorch/core/graph/eager_graph_executor_message_imp.h` | — |
 | `GraphTraversalSequence` | `dtorch/core/graph/graph_traversal_sequence.h` | — |
 | `LogicalGraph` | `dtorch/core/graph/logical_graph.h` | — |
-| `RunnerBase` | `dtorch/core/runner/runner_base.h` | — |
+| `NodeRunnerBase` | `dtorch/core/runner/node_runner_base.h` | — |
 | `PerDeviceThreadNodeRunner` | `dtorch/core/runner/per_device_thread_node_runner.h` | — |
 | `NaiveRunner` | `dtorch/core/runner/naive_runner.h` | `dtorch/core/runner/naive_runner.cc` |
 | `RunnerSupportedDevices` | `dtorch/core/runner/runner_supported_devices.h` | — |

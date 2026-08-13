@@ -1,6 +1,6 @@
 # LogicalGraph 计算图表示
 
-DTorch 的 Eager Graph 执行引擎建立在三个核心抽象之上：**LogicalGraph**（计算图容器）、**Operand**（张量元信息节点）和 **Operator**（计算节点）。三者构成一个 DAG（有向无环图），以拓扑结构表达计算逻辑。
+DTorch 的 GraphExecutor 建立在三个核心抽象之上：**LogicalGraph**（计算图容器）、**Operand**（张量元信息节点）和 **Operator**（计算节点）。三者构成一个 DAG（有向无环图），以拓扑结构表达计算逻辑。
 
 ## 1. 架构概览
 

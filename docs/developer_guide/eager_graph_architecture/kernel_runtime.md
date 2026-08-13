@@ -1,6 +1,6 @@
 # Kernel 运行时：从 Operator 到 KernelStream 的执行映射
 
-DTorch 的 Eager Graph 引擎在构建 LogicalGraph 之后，需要将图中的 Operator 节点转化为可在具体设备上执行的 Kernel，并分配到对应的 KernelStream 上异步执行。本文档描述 **Blob**、**Kernel**、**KernelStream**、**KernelStreamKey** 和 **OperatorAssignInfo** 如何协作完成这一过程。
+DTorch 的 GraphExecutor 在构建 LogicalGraph 之后，需要将图中的 Operator 节点转化为可在具体设备上执行的 Kernel，并分配到对应的 KernelStream 上异步执行。本文档描述 **Blob**、**Kernel**、**KernelStream**、**KernelStreamKey** 和 **OperatorAssignInfo** 如何协作完成这一过程。
 
 ## 1. 架构概览
 
@@ -326,17 +326,21 @@ Operator::Infer()
   └─ kernel.reset()  ← 释放 Kernel 和 Blob 引用
 ```
 
-### 阶段 5：同步与取值
+### 阶段 5：取值（GetTensorOp）
 
-当用户需要获取计算结果时：
+取值操作被建模为系统算子 `GetTensorOp`：用户请求 Tensor 值时，框架创建 `GetTensorOp`（携带 `TensorPromise`）加入计算图，与普通算子一样被转为 Kernel 在 KernelStream 上执行：
 
 ```
-Runner::GetTorchTensor(operand)
-  ├─ mStreamManager.Sync()
-  │    └─ 对每个 KernelStream 调用 Sync()
-  │         └─ 推入 nullptr 哨兵 → 等待 GPU 同步 → 返回
-  └─ 从 mOperandToBlobs[operand] 中读取 torch::Tensor 并返回
+GetTensorOp::Compute()
+  ├─ 从输入 Blob 提取 torch::Tensor
+  ├─ (GPU) 在当前 stream 记录 DeviceEvent → 投递到 BoostAsioThreadPool 后台线程
+  │        └─ event->Synchronize()（只等该 stream，而非整卡）→ 在普通 CPU 线程上
+  │           完成 CUDA IPC（跨进程传递显存句柄只能在非 CUDA 线程进行）
+  └─ promise->SetValue(tensor)  ← 唤醒阻塞在 TensorFuture::Get() 的调用方
 ```
+
+纯同步（`Graph::Sync()`）同理，建模为零输入零输出的系统算子 `SyncOp`，每个目标设备对应一个 `SyncKernel`，通过 Event + 后台线程异步等待 GPU 完成后设置 `VoidPromise`。详见 [异步获取 Tensor 值](async_get_tensor.md)。
+
 
 ## 8. 关键设计要点
 
@@ -385,7 +389,7 @@ Client (Python)          Controller (C++)           Worker (KernelStream 线程)
 | CpuKernelStream | `dtorch/core/kernel_stream/cpu_kernel_stream.h` | — |
 | CudaKernelStream | `dtorch/core/kernel_stream/cuda_kernel_stream.h` | `dtorch/core/kernel_stream/cuda_kernel_stream.cc` |
 | KernelStreamManager | `dtorch/core/kernel_stream/kernel_stream_manager.h` | `dtorch/core/kernel_stream/kernel_stream_manager.cc` |
-| Runner (NaiveRunner) | `dtorch/core/runner/runner_base.h` | `dtorch/core/runner/naive_runner.cc` |
+| Runner (NaiveRunner) | `dtorch/core/runner/node_runner_base.h` | `dtorch/core/runner/naive_runner.cc` |
 
 ## 10. 相关文档
 

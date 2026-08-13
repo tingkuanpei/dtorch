@@ -16,21 +16,21 @@ DTorch 是一个基于 **Single-Controller** 和 **Distributed Tensor** 架构�
 DTorch 采用分层架构，从底层基础设施到顶层 API 形成完整技术栈：
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                       Python/C++ API 层                              │
-│  Python nn.Module / HuggingFace / nanobind 桥接 / C++ Tensor API     │
-├──────────────────────────────────────────────────────────────────────┤
-│                       C++ 核心引擎层                                 │
-│  Operator 算子体系 / Kernel 执行引擎 / LogicalGraph 计算图           │
-│  Blob 内存管理 / Stream 流调度 / 分布式运行时 / 通信库               │
-├──────────────────────┬───────────────────────────────────────────────┤
-│  C++ 公共基础层      │  外部库适配层                                 │
-│  日志/断言/字符串    │  CUDA / NCCL / ZMQ / gRPC / Boost / Torch     │
-│                      │  Sage Attention / Python 工具                 │
-├──────────────────────┴───────────────────────────────────────────────┤
-│                      基础设施与构建层                                │
-│  CMake 构建系统 / 第三方依赖管理 / 安装脚本 / CI                     │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           Python/C++ API Layer                           │
+│           Python nn.Module / nanobind bridge / C++ Tensor API            │
+├──────────────────────────────────────────────────────────────────────────┤
+│                          C++ Core Engine Layer                           │
+│              Operator system / LogicalGraph / Kernel engine              │
+│  Blob memory mgmt / Stream scheduling / Distributed runtime / Comm libs  │
+├────────────────────────┬─────────────────────────────────────────────────┤
+│ C++ Common Base Layer  │            External Library Adapters            │
+│ Log / assert / string  │    CUDA / NCCL / ZMQ / gRPC / Boost / Torch     │
+│                        │          Sage Attention / Python utils          │
+├────────────────────────┴─────────────────────────────────────────────────┤
+│                       Infrastructure & Build Layer                       │
+│         CMake build system / Third-party deps / Install scripts          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 各层职责
@@ -54,52 +54,56 @@ DTorch 围绕三大核心设计理念构建。详见 [设计理念文档](design
 异步分布式执行模型，三类角色协作：
 
 ```
-┌──────────────┐      异步消息       ┌─────────────────┐       Kernel Queue      ┌─────────-─┐
-│  Client      │ ─────────── ────> │                  │ ──────────────────────> │           │
-│  (Python)    │                   │    Controller    │                         │   Worker  │
-│              │ <── 仅取值时同步 ── │                  │ <─---─ 仅取值时同步 ────  │           │
-└──────────────┘                   └──────────────── ─┘                         └──────────-┘
+┌──────────┐       async messages       ┌────────────┐       kernel queue        ┌────────┐
+│ Client   │ ─────────────────────────> │ Controller │ ──────────────────────-─> │ Worker │
+│ (Python) │                            │ (C++)      │                           │ (C++)  │
+│          │ <── sync when get value ── │            │ <─ sync when get value -─ │        │
+└──────────┘                            └────────────┘                           └────────┘
 ```
 
-- **Single-Client**: Python 进程，创建 DTensor Symbol 和 Operator，序列化为消息异步发送。Client 侧 Tensor 仅持有元信息（Shape、DType、DeviceMesh、Placements），不持有数据。
-- **Single-Controller**: C++ MainNode（`dtorch/core/distributed/main_node.h`），接收消息构建 LogicalGraph，管理全部计算资源。每台机器有 Sub-Controller（`dtorch/core/distributed/worker_node.h`）管理本机资源。
+- **Single-Client**: Python 线程，创建 Tensor 和 Operator，序列化为消息异步发送。Client 侧的 Tensor 仅持有元信息（Shape、DType、DeviceMesh、Placements），不持有数据。Client 侧的 Operator 仅持有参数，不持有 CPU/CUDA Kernel，不负责计算。
+- **Single-Controller**: Controller 运行在 C++ Thread 上，接收 Client 发送过来的 Operator 消息队列，构建 LogicalGraph，管理所有计算资源。其会将 Operator 转换成对应 device 的 Kernel，发送到 Worker 上执行。
 - **Multi-Worker**: C++ Thread，每个 Worker 绑定一个 CUDA Stream 或 CPU 线程，按序执行 Kernel。
 
-### 2. Distributed Tensor (DTensor)
+详见 [Single-Controller 文档](single_controller.md)。
+
+### 2. Distributed Tensor
 
 通过 `DeviceMesh` 和 `Placements` 原生支持 N-D 并行，详见 [Distributed Tensor 文档](distributed_tensor.md)。
 
-- **DeviceMesh** (`dtorch/api/cpp/distributed_spec.h`): N 维设备网格，描述集群 GPU 拓扑
-- **Placements**: 三种分布策略 — `Shard(dim)`（切分）、`Replicate()`（复制）、`Partial()`（部分聚合）
+- **DeviceMesh**：n-dimensional array，描述集群中 device 的拓扑。
+- **Placements**：1D array of length n。描述 Tensor 在 DeviceMesh 每一维上的切分策略——`Shard(dim)`（切分）/ `Replicate()`（复制）/ `Partial()`（部分聚合）。
 - 统一表达 Data Parallel、Tensor Parallel、Context Parallel、Pipeline Parallel、Expert Parallel、ZeRO 等所有并行策略
 
 ### 3. Eager Graph Architecture
 
-融合 Eager Mode（简洁接口）和 Graph Mode（全局优化）的执行引擎，采用四层分层设计：
+为高效实现 Single-Client Single-Controller Multi-Worker 的范式，DTorch 设计了全新的执行引擎：**Eager Graph Architecture**，其同时支持 Eager 模式和静态图模式。
+
+Eager Graph Architecture 采用四层分层设计：
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                 Eager Graph 引擎 (Layer 3)                            │
-│  GraphConstructor → EagerGraphExecutor → RunnerBase (4 种派生 Runner) │
-│  消息队列驱动，异步消费 Operator，管理计算图生命周期                    │
-│                                                                      │
-│  单机多线程：PerDeviceThreadNodeRunner → NaiveRunner (kMemory store)  │
-│  单机多进程：PerDeviceProcessNodeRunner → RemoteRunnerPublisher/      │
-│              RemoteRunnerInProcessClientAndServer → ZMQ → 子进程       │
-├──────────────────────────────────────────────────────────────────────┤
-│     计算图表示 (Layer 1)              Kernel 运行时 (Layer 2)          │
-│  Operand / Operator / LogicalGraph    Blob / Kernel / KernelStream   │
-│  DAG 拓扑结构，元信息推导              物理内存容器，异步执行流          │
-├──────────────────────────────────────────────────────────────────────┤
-│                      集合通讯组件 (Layer 4)                            │
-│  ThreadGroup (集合通信原语)  /  TensorStore (跨线程张量交换)            │
-│  AllReduce, AllGather, ReduceScatter ... Memory / File / Network       │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           GraphExecutor (Layer 3)                            │
+│ GraphConstructor → EagerGraphExecutor → NodeRunnerBase (concrete subclasses) │
+│ Message-queue driven; consumes Operators async; manages graph create/destroy │
+│                                                                              │
+│    Multi-thread: PerDeviceThreadNodeRunner → NaiveRunner (kMemory store)     │
+│      Multi-process: EagerGraphExecutor broadcasts via Publisher (PUB);       │
+│   PerDeviceProcessNodeRunner → RemoteRunnerInProcess → child RemoteRunner    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│    Graph Representation (Layer 1)    │       Kernel Runtime (Layer 2)        │
+│  Operand / Operator / LogicalGraph   │     Blob / Kernel / KernelStream      │
+│  DAG topology, meta-info deduction   │    Memory container, async stream     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                      Collective Communication (Layer 4)                      │
+│  ThreadGroup (collective primitives) / TensorStore (cross-thread exchange)   │
+│       AllReduce, AllGather, ReduceScatter ... Memory / File / Network        │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Layer 1 — 计算图表示**: Operand（张量元信息节点）、Operator（计算节点）、LogicalGraph（DAG 容器）。仅含元信息，不含数据指针或 CUDA Kernel。
 - **Layer 2 — Kernel 运行时**: Blob（torch::Tensor 物理容器）、Kernel（最小执行单元）、KernelStream（CPU 线程/CUDA Stream 封装）。Operator → Kernel 映射，异步执行。
-- **Layer 3 — Eager Graph 引擎**: GraphConstructor（Python API 桥梁）→ EagerGraphExecutor（Controller 实现，AsyncMain 消息循环）→ RunnerBase 派生类（NaiveRunner 执行引擎）。支持单机多线程和单机多进程两种模式。
+- **Layer 3 — GraphExecutor**: GraphConstructor（Python API 桥梁）→ EagerGraphExecutor（Controller 实现，AsyncMain 消息循环）→ NodeRunnerBase 派生类（NaiveRunner 执行引擎）。支持单机多线程和单机多进程两种模式。
 - **Layer 4 — 集合通讯组件**: ThreadGroup（AllReduce/AllGather 等集合通信原语）+ TensorStore（生产者-消费者跨线程张量交换）。支撑 DTensor 的 DeviceMesh 变换和 Placement 重分布。
 - **三级异步流水线**: Client → Controller → Worker，仅取值时同步
 - **图改写优化**: 计算-通信重叠、算子融合、冗余消除、显存复用
@@ -136,7 +140,7 @@ dtorch/
 │   ├── rpc/              # gRPC 服务定义与实现
 │   ├── sage_attn/        # Sage Attention 加速适配
 │   ├── torch/            # LibTorch 工具
-│   └── zmq/              # ZMQ 消息通信（RemoteRunnerPublisher/Client/Server）
+│   └── zmq/              # ZMQ 消息通信（RemoteRunnerPublisher/Subscriber/Pusher/Puller）
 └── tests/                # C++ 单元/集成测试
 
 python/dtorch/
@@ -169,10 +173,10 @@ python/dtorch/
 | [test.md](../get_started/test.md) | 测试指南：Python 单元测试、C++ 单元测试 (gtest)、应用测试（Flux/SD3） |
 | [how_to_build.md](../get_started/how_to_build.md) | 构建与开发环境配置 |
 | [single_controller.md](single_controller.md) | Single-Client Single-Controller Multi-Worker 架构详解，与 Multi-Controller 对比 |
-| [eager_graph_architecture.md](eager_graph_architecture/eager_graph_architecture.md) | Eager Graph 架构总览：四层架构（计算图表示 → Kernel 运行时 → Eager Graph 引擎 → 集合通讯组件） |
-| [eager_graph_engine.md](eager_graph_architecture/eager_graph_engine.md) | Layer 3 详解：单机多线程（GraphConstructor → EagerGraphExecutor → PerDeviceThreadNodeRunner → NaiveRunner） |
-| [eager_graph_engine_in_cluster.md](eager_graph_architecture/eager_graph_engine_in_cluster.md) | Layer 3 详解：单机多进程（RemoteRunnerPublisher, RemoteRunnerInProcessClientAndServer, PerDeviceProcessNodeRunner, SubProcess） |
-| [zmq.md](communicate/zmq.md) | ZMQ 通信机制：PUB-SUB + REQ-REP 双通道、消息协议与顺序保证 |
+| [eager_graph_architecture.md](eager_graph_architecture/eager_graph_architecture.md) | Eager Graph 架构总览：四层架构（计算图表示 → Kernel 运行时 → GraphExecutor → 集合通讯组件） |
+| [graph_executor.md](eager_graph_architecture/graph_executor.md) | Layer 3 详解：单机多线程（GraphConstructor → EagerGraphExecutor → PerDeviceThreadNodeRunner → NaiveRunner） |
+| [graph_executor_in_cluster.md](eager_graph_architecture/graph_executor_in_cluster.md) | Layer 3 详解：单机多进程（RemoteRunnerPublisher, RemoteRunnerInProcess, PerDeviceProcessNodeRunner, SubProcess） |
+| [zmq.md](communicate/zmq.md) | ZMQ 通信机制：PUB-SUB + PUSH-PULL 双通道、消息协议与顺序保证 |
 | [process_heart_beat.md](eager_graph_architecture/process_heart_beat.md) | 进程心跳机制：gRPC 双向心跳、MainProcessHeartBeat / WorkerProcessHeartBeat、进程故障检测与优雅关闭 |
 | [serialization.md](eager_graph_architecture/serialization.md) | Operator 序列化与反序列化：Boost.Serialization 体系、OperatorSerializationPack、跨进程传输 |
 | [logical_graph_representation.md](eager_graph_architecture/logical_graph_representation.md) | Layer 1: 计算图表示 — Operand / Operator / LogicalGraph |

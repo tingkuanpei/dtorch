@@ -1,6 +1,6 @@
-# Eager Graph Engine in Cluster（单机多进程）
+# GraphExecutor in Cluster（单机多进程）
 
-[eager_graph_engine.md](eager_graph_engine.md) 介绍了单机多线程场景下的执行管线。本文档介绍 **单机多进程** 场景：当用户设置 `perDevicePerProcess = true` 时，每个 GPU 运行在独立的子进程中，通过 ZMQ IPC 与 Controller 进程通信。
+[graph_executor.md](graph_executor.md) 介绍了单机多线程场景下的执行管线。本文档介绍 **单机多进程** 场景：当用户设置 `perDevicePerProcess = true` 时，每个 GPU 运行在独立的子进程中，通过 ZMQ IPC 与 Controller 进程通信。
 
 本文档与 [zmq.md](../communicate/zmq.md) 配合阅读——zmq.md 详述通信协议和消息格式，本文档聚焦 Runner 架构和进程管理。
 
@@ -50,7 +50,7 @@
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-对比单机多线程场景（`eager_graph_engine.md` 第 1 节），核心变化：
+对比单机多线程场景（`graph_executor.md` 第 1 节），核心变化：
 
 | 方面 | 单机多线程 (`PerDeviceThreadNodeRunner`) | 单机多进程 (`PerDeviceProcessNodeRunner`) |
 |---|---|---|
@@ -151,13 +151,11 @@ void EagerGraphExecutor::ExecuteOperatorsAndNoHoldOperands(...) {
 
 源码位置：`dtorch/external/zmq/remote_runner_publisher.h` / `.cc`
 
-**角色**：PUB-SUB 的发布端，由 `EagerGraphExecutor` 持有。负责将 `Execute`、`Sync`、`GetTorchTensor`、`Destroy` 四种命令广播给所有 GPU 子进程。
+**角色**：PUB-SUB 的发布端，由 `EagerGraphExecutor` 持有。负责将 `Execute`、`Destroy` 两种命令广播给所有 GPU 子进程。
 
 ```cpp
 class RemoteRunnerPublisher {
     void Execute(ops, noHoldOperands);  // 序列化算子并广播
-    void GetTorchTensor();              // 广播 GetTorchTensor 顺序标记
-    void Sync();                        // 广播 Sync 顺序标记
     void SendDestroy();                 // 通知所有子进程退出
 };
 ```
@@ -430,6 +428,6 @@ EagerGraphExecutor::AsyncMain()
 | 文档 | 内容 |
 |---|---|
 | [zmq.md](../communicate/zmq.md) | ZMQ 通信协议与消息格式详解 |
-| [eager_graph_engine.md](eager_graph_engine.md) | 单机多线程场景的执行管线 |
+| [graph_executor.md](graph_executor.md) | 单机多线程场景的执行管线 |
 | [tensor_communicate.md](../communicate/tensor_communicate.md) | ThreadGroup / TensorStore 集合通信机制 |
 | [kernel_runtime.md](kernel_runtime.md) | Kernel / KernelStream / Blob 运行时执行 |

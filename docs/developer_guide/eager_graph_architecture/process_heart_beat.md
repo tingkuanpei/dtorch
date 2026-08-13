@@ -396,7 +396,7 @@ Main 进程析构：                          Worker 进程析构：
 
 | 层级 | 协议 | 用途 |
 |---|---|---|
-| 数据面 | ZMQ (PUB-SUB / REQ-REP) | Operator 广播、Tensor 取值、同步 |
+| 数据面 | ZMQ (PUB-SUB / PUSH-PULL) | Operator 广播（含取值/同步）、设备就绪上报、销毁通知 |
 | 控制面 | gRPC | 心跳健康检查、Worker 注册/取消注册 |
 
 心跳走控制面，不影响算子传输性能。即使 ZMQ 通道因背压暂时阻塞，心跳仍能独立运行，不会产生连锁故障。
@@ -437,4 +437,4 @@ Worker Process ──owns──► WorkerProcessHeartBeat
 
 在 `Cluster` API 层，`MainNode::GetMainProcessHeartBeatAddress()` 暴露心跳地址，供 `RemoteRunnerInProcessLauncher` 通过共享内存传递给子进程。
 
-参见 [Eager Graph 引擎 (单机多进程)](eager_graph_engine_in_cluster.md) 了解更多多进程架构细节。
+参见 [GraphExecutor (单机多进程)](graph_executor_in_cluster.md) 了解更多多进程架构细节。
