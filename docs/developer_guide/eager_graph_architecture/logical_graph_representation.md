@@ -1,44 +1,14 @@
 # LogicalGraph 计算图表示
 
-DTorch 的 GraphExecutor 建立在三个核心抽象之上：**LogicalGraph**（计算图容器）、**Operand**（张量元信息节点）和 **Operator**（计算节点）。三者构成一个 DAG（有向无环图），以拓扑结构表达计算逻辑。
+DTorch 的计算图建立在三个核心抽象之上：**LogicalGraph**（计算图容器）、**Operand**（张量元信息节点）和 **Operator**（计算节点）。Operand 和 Operator 构成一个 DAG（有向无环图）的 LogicalGraph，以拓扑结构表达计算逻辑。
 
 ## 1. 架构概览
 
-- **Operand** = 图中的**数据节点**，持有张量的元信息（Shape、Stride、DataKind、DeviceMesh、Placements），不持有实际数据。
-- **Operator** = 图中的**计算节点**，持有输入/输出 Operand 的引用，封装单个算子（如 `relu`、`add`、`matmul`）的元信息推导、分布式规则和实际计算逻辑。
-- **LogicalGraph** = Operand 和 Operator 构成的 DAG 拓扑容器，仅管理节点引用，不直接参与执行。
+- **Operand**： 图中的**数据节点**，持有张量的元信息（Shape、Stride、DataKind、DeviceMesh、Placements），不持有实际数据。
+- **Operator**： 图中的**计算节点**，持有输入/输出 Operand 的引用，封装单个算子（如 `relu`、`add`、`matmul`）的元信息推导、分布式规则和实际计算逻辑。
+- **LogicalGraph**： Operand 和 Operator 构成的 DAG 拓扑容器，仅管理节点引用。
 
-## 2. LogicalGraph — DAG 拓扑容器
-
-**源文件**: `dtorch/core/graph/logical_graph.h`
-
-`LogicalGraph` 是计算图的顶层容器，使用两个 `unordered_map` 管理图中的所有节点：
-
-| 成员 | 类型 | 说明 |
-|---|---|---|
-| `mOperatorMap` | `unordered_map<const Operator*, shared_ptr<Operator>>` | 算子映射，key 为原始指针，value 为智能指针，支持 O(1) 查找 |
-| `mOperandMap` | `unordered_map<const Operand*, shared_ptr<Operand>>` | 操作数映射，同上 |
-
-### 关键操作
-
-| 方法 | 说明 |
-|---|---|
-| `AddOperator(op)` | 向图中添加一个算子节点 |
-| `AddOperand(operand)` | 向图中添加一个操作数节点 |
-| `DeleteOperator(op)` | 删除算子节点（仅移除引用，不更新图拓扑） |
-| `DeleteOperand(operand)` | 删除操作数节点（仅移除引用，不更新图拓扑） |
-| `CountOperator(op)` | O(1) 检查算子是否在图中 |
-| `CountOperand(operand)` | O(1) 检查操作数是否在图中 |
-| `GetOperator(op)` | 获取算子对应的 shared_ptr |
-| `GetOperand(operand)` | 获取操作数对应的 shared_ptr |
-
-`LogicalGraph` 本身**不维护图的拓扑遍历顺序**，拓扑排序由 `GraphTraversalSequence` 完成。
-
-### 生命周期
-
-在 Eager 模式下，`LogicalGraph` 由 `EagerGraphExecutor` 持有（见 `eager_graph_executor.h:97`）。图会**动态增长**：每当用户调用 `api::cpp::functional` 接口时添加新节点；每个新增节点只执行一次，执行完毕后被销毁。
-
-## 3. Operand — 数据节点
+## 2. Operand — 数据节点
 
 **源文件**: `dtorch/core/operand.h`
 
@@ -58,11 +28,8 @@ Operand
 │   └── mDataKind      — 数据类型（float32, float16, bfloat16, int64 等）
 │
 ├── 分布式信息 (Distribute)
-│   ├── mDeviceMesh    — N 维设备网格，描述 GPU 拓扑
-│   └── mPlacementSeq  — 分布式放置序列（Shard/Replicate/Partial）
-│
-└── 缓存
-    └── mAllLocalShape — 每个 device 上的局部 Shape（惰性计算 + 缓存）
+    ├── mDeviceMesh    — N 维设备网格，描述 GPU 拓扑
+    └── mPlacementSeq  — 分布式放置序列（Shard/Replicate/Partial）
 ```
 
 ### 拓扑关系
@@ -73,42 +40,53 @@ Operand
 - **ProducerOp**: 指向产生此 Operand 的唯一 Operator。图的输入 Operand 的 ProducerOp 为 `nullptr`。
 - **ConsumerOps**: 消费此 Operand 的所有 Operator 列表。图的最终输出 Operand 的 ConsumerOps 为空。
 
-### 分布式支持
-
-Operand 原生支持分布式张量：通过 `DeviceMesh` 描述集群 GPU 拓扑，通过 `PlacementSeq` 描述张量在各维度上的分布策略。`GetLocalShape(globalDeviceId)` 可根据全局设备 ID 计算该设备上的局部张量形状。
-
-## 4. Operator — 计算节点
+## 3. Operator — 计算节点
 
 **源文件**: `dtorch/core/operators/operator.h`
 
-`Operator` 是计算图中的**计算节点**，封装单个操作的完整生命周期。详细文档见 [Operator 算子体系](../operator/operator.md)。
-
-### 与 Operand 的关系
-
-Operator::Infer() 会根据输入 Operands 的元信息，推断输出 Operands 的元信息：
+`Operator` 是计算图中的**计算节点**。用户调用的每个算子（如 `relu`、`add`、`matmul`）在图中都对应一个 Operator 节点，它连接输入 Operand 与输出 Operand：
 
 ```
 mInputOperands[0] ──┐
 mInputOperands[1] ──┤
-        ...         ├──► Operator::Infer() ──► mOutputOperands[0]
-mInputOperands[N] ──┘                          mOutputOperands[...]
+        ...         ├──► Operator ──► mOutputOperands[0]
+mInputOperands[N] ──┘                  mOutputOperands[...]
 ```
 
-每个 Operator 持有：
-- `mInputOperands` — 输入 Operand 的引用数组
-- `mOutputOperands` — 输出 Operand 的引用数组（由 `CreateOutputOperands()` 根据 `InferOutputSize()` 创建）
+`Operator` 是基类，每个算子都有对应的派生类（如 `ConvOp`、`LinearOp`、`ReduceOp`），使用模板方法模式，基于基类实现各自的行为。
 
-### 便捷访问器
+每个 Operator 派生类封装了：
 
-Operator 提供了语义化的 Operand 访问器：
+- **元信息推导** — 根据输入 Operand 的元信息（Shape、DeviceMesh、Placements 等）推导输出 Operand 的元信息，此过程不涉及实际数据
+- **分布式规则** — 声明该算子支持的输入/输出 Placements 组合（PlacementSignature）
 
-| 访问器 | 说明 |
+每个 Operator 还会持有 **`OpParam`**，由于描述该算子所需的全部参数——如卷积的 `ConvParam` 携带 `kernelSize`、`pads`、`strides` 等。
+
+## 4. LogicalGraph — DAG 拓扑容器
+
+**源文件**: `dtorch/core/graph/logical_graph.h`
+
+`LogicalGraph` 是计算图的顶层容器，使用两个 `unordered_map` 管理图中的所有节点：
+
+| 成员 | 类型 | 说明 |
+|---|---|---|
+| `mOperatorMap` | `unordered_map<const Operator*, shared_ptr<Operator>>` | 算子映射，key 为原始指针，value 为智能指针，支持 O(1) 查找 |
+| `mOperandMap` | `unordered_map<const Operand*, shared_ptr<Operand>>` | 操作数映射，同上 |
+
+### 关键操作
+
+| 方法 | 说明 |
 |---|---|
-| `OperandX()` | `GetInputOperand(0)`，单输入算子的输入 |
-| `OperandWeight()` | `GetInputOperand(1)`，带权重的算子（如 Linear）的权重 |
-| `OperandBias()` | `GetInputOperand(2)`，偏置 |
-| `OperandA() / OperandB() / OperandC()` | 通用多输入算子（如 Add、MatMul）的输入 |
-| `OperandY()` | `GetOutputOperand(0)`，首个输出 |
+| `AddOperator(op)` | 向图中添加一个算子节点 |
+| `AddOperand(operand)` | 向图中添加一个操作数节点 |
+| `DeleteOperator(op)` | 删除算子节点（仅移除引用，不更新图拓扑） |
+| `DeleteOperand(operand)` | 删除操作数节点（仅移除引用，不更新图拓扑） |
+
+`LogicalGraph` 本身**不维护图的拓扑遍历顺序**，拓扑排序由 `GraphTraversalSequence` 完成。
+
+### 生命周期
+
+在 Eager 模式下，`LogicalGraph` 由 `EagerGraphExecutor` 持有（见 `eager_graph_executor.h:97`）。图会**动态增长**：每当用户调用 `api::cpp::functional` 接口时添加新节点；每个新增节点只执行一次，执行完毕后被销毁。
 
 ## 5. 图构建
 
@@ -122,10 +100,6 @@ Operator 提供了语义化的 Operand 访问器：
 2. API 层创建 `OpParam` 并调用 `GraphConstructor::AddOperator()`
 3. `GraphConstructor` 实例化对应的 `Operator`，执行 `Infer()` 推导元信息
 4. 通过 `SendOperatorToExecutor()` 将算子发送给 `EagerGraphExecutor`
-
-此外，`GraphConstructor` 还管理：
-- `OperandCache` — Operand 的引用计数和命名
-- `mOperandCaches` — Operand 到缓存的映射
 
 ### GraphTraversalSequence
 

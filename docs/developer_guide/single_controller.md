@@ -8,42 +8,11 @@ DTorch 的分布式执行模型由一个 Python Client、一个中央 Controller
 Operator），框架自动完成分布式集群上的资源管理、任务分发和通讯等操作。DTorch 中包含三类角色：**Client**、**Controller** 和 **Worker**，共同构成
 Single-Client Single-Controller Multi-Worker 的异步分布式执行模型：
 
-```mermaid
-flowchart TB
-    subgraph Client["🖥️ Single-Client（Python 进程）"]
-        PT[创建 DTensor Symbol<br/>创建 Operators]
-    end
-
-    PT -->|"Operators 节点序列（异步）"| MC
-
-    subgraph Controller["🎛️ Single-Controller"]
-        MC[Main-Controller<br/>构建 LogicalGraph / 调度计算资源]
-
-        MC -->|"ZMQ"| SC0
-        MC -->|"ZMQ"| SC1
-
-        SC0[Sub-Controller 0]
-        SC1[Sub-Controller 1]
-    end
-
-    subgraph Machine0["🖥️ Machine 0"]
-        SC0 -->|Kernel Queue| W0A[Worker 0]
-        W0A -->|PCIe| GPU0[GPU 0]
-    end
-
-    subgraph Machine1["🖥️ Machine 1"]
-        SC1 -->|Kernel Queue| W1A[Worker 1]
-        W1A -->|PCIe| GPU1[GPU 1]
-    end
-
-    MC -.->|"仅获取 Tensor 值时同步等待"| PT
-```
-
-> 图中实线箭头表示异步消息流，虚线箭头表示同步等待（仅在获取 Tensor 值时触发）。
+![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker.png)
 
 ### 1.1 Single-Client
 
-**Single-Client** 即 Python Client 进程。用户在 Python Client 中创建 Tensor、调用 Operator 和获取 Tensor
+**Single-Client** 即 Python Client 线程。用户在 Python Client 中创建 Tensor、调用 Operator 和获取 Tensor
 的值。Python Client 上的所有操作都被抽象为"计算节点"，并序列化为 Messages 异步发送给 Controller。
 
 Python Client **不直接**创建 CUDA Memory 或调用 CUDA Kernel 执行计算。Client 侧的 Tensor 仅仅是一个
@@ -71,11 +40,6 @@ Controller 接收 Client 发送的计算节点 Messages，将其转换为计算�
 Controller 将计算节点翻译为可执行的 Kernel，分发给 Worker 执行。
 
 > **Controller 与 Worker 同样异步执行**，仅当获取 Tensor 的值时才需同步。
-
-核心实现位于：
-- `dtorch/core/distributed/main_node.h` — Main-Controller
-- `dtorch/core/distributed/worker_node.h` — Sub-Controller
-- `dtorch/core/graph/eager_graph_executor.h` — 图执行引擎
 
 ### 1.3 Multi-Worker
 
@@ -115,11 +79,11 @@ DTorch 的分布式接口中使用 Single-Controller，而 PyTorch 的分布式�
 ### 3.1 概念对比
 
 **Single-Controller** 只有一个 Main-Controller 节点，负责管理分布式集群中的**所有** GPU 资源，用户在分布式集群的**全局视角**下进行编程。该模式最早在
-TensorFlow v1 中被使用，并在 [Pathway](https://arxiv.org/abs/2203.12533) 中有详细的论述。
+TensorFlow v1 中被使用，并在 [Pathway](https://arxiv.org/abs/2203.12533) 中也有论述。
 
 **Multi-Controller** 则创建多个 Controller 进程，每个进程只管理一个 GPU，因此在分布式集群的**局部视角**下编程。所有进程执行同一份代码描述计算流程并直接调度 GPU 资源（SPMD 范式）。
 
-![Single-Controller vs Multi-Controller](https://secure2.wostatic.cn/static/jv9BUoVZEEYqm4KzusogfB/image.png?auth_key=1781971243-wfz8QDRELqF3vXxw8SdKvS-0-36be58c2a4d8a83e6f5b6c59bfb68165)
+![Single-Controller vs Multi-Controller](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/single_controller_vs_multi_controller.png)
 
 Single-Controller 和 Multi-Controller 是 DTorch 和 PyTorch 最根本的差异。两者对比如下：
 
@@ -171,7 +135,7 @@ Multi-Controller 中每个进程上执行的代码可以完全不一样，因此
 
 ## 4. 源码实现
 
-DTorch 中使用 [Eager Graph 架构](eager_graph_architecture/eager_graph_architecture.md) 实现了 Single-Client Single-Controller Multi-Worker。但是并没有直接使用 Client、Controller、Worker 作为类名。
+DTorch 中使用 [Eager Graph 架构](eager_graph_architecture/eager_graph_architecture.md) 实现了 Single-Client Single-Controller Multi-Worker。但是并没有直接使用 Client、Controller、Worker 作为类名，其对照关系如下：
 
 | 角色 | 代码中的对照 |
 |---|---|

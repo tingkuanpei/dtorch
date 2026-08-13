@@ -19,6 +19,14 @@ Single-Controller 通过跨机网络统一调度所有机器，相比每台机�
 
 深度学习框架的执行模式可分为动态图与静态图两类：动态图（Eager Mode，PyTorch 架构）中 Python 代码直接创建 Tensor 并 Launch CUDA Kernel，接口简洁易用，但缺乏全局优化空间；静态图（Graph Mode，TensorFlow v1 架构）先构建完整计算图再执行，可进行全局优化，但接口不够直观。DTorch 选择将两者统一：执行引擎基于计算图实现，对外暴露 Eager 接口。用户在 Single-Client 以 Eager 方式创建计算节点（创建 Tensor、执行 Operator、获取 Tensor 值等），节点被序列化为 Messages 异步发送给 Controller；Controller 将其构建为**计算子图**（每次构图并非完整计算图，而是增量子图），并通过图引擎执行。由此，DTorch 既保留 Eager 接口的易用性，又获得基于子图的全局优化能力，兼备两种模式的优点。
 
+## C++ VS Python
+
+Eager Graph 架构下，每个 Operator 的执行都需经过构图与调度环节，单算子调度开销直接决定框架的性能上限。作为对比，PyTorch 单个算子的调度开销不足 3us，而 DTorch 当前单个算子的调度开销为 6us（仍存在优化空间）；若核心引擎基于 Python 实现，解释执行带来的额外开销将使调度开销进一步放大。
+
+此外，Python GIL 的问题短期无法解决：多 GPU 线程共享同一进程的 GIL 会限制并行度，而基于多进程实现绕开 GIL 又会引入进程间通讯与上下文切换的开销，CPU 开销更大。
+
+开发成本方面，PyTorch 提供 C++ 算子库 LibTorch，DTorch 以 LibTorch 作为计算后端（见 [LibTorch 后端](#libtorch-后端)），无需自行实现全部算子，相比直接使用 Python 版 PyTorch，开发成本可以接受。因此，DTorch 以 C++ 实现核心引擎，Python 仅用于框架层与用户接口；仅在必要场景（如调用仅提供 Python 接口的第三方加速库）下，才通过 [Python Kernel](#python-kernel) 将 Python 引入计算路径。
+
 ## 异步计算
 Single-Client、Single-Controller 和 Multi-Worker 构成三级异步执行流水线，大幅降低系统调度开销。Client 无需等待 Controller，Controller 无需等待 Worker — 仅当用户显式获取 Tensor 值时才触发同步等待。异步计算是 DTorch 的核心特性，其使 Controller 得以提前获得计算子图，为 DTorch 带来一系列性能优化机会。
 

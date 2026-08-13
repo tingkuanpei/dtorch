@@ -24,6 +24,7 @@ theme:
     - navigation.indexes
     - navigation.instant
     - navigation.instant.prefetch
+    - navigation.expand
     - navigation.path
     - navigation.tabs
     - navigation.top
@@ -97,13 +98,13 @@ nav:
           - 项目概述: developer_guide/project_overview.md
           - 关键概念: developer_guide/key_concept.md
       - 核心架构:
-          - Distributed Tensor: developer_guide/distributed_tensor.md
           - Single-Controller 架构: developer_guide/single_controller.md
+          - Distributed Tensor: developer_guide/distributed_tensor.md
           - Eager Graph 架构:
               - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
               - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md
               - Layer 2 · Kernel 运行时: developer_guide/eager_graph_architecture/kernel_runtime.md
               - Layer 3 · GraphExecutor: developer_guide/eager_graph_architecture/graph_executor.md
-              - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate.md
+              - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate_overview.md
       - 设计决策: developer_guide/design_decisions.md
       - 文档索引: developer_guide/document_index.md
