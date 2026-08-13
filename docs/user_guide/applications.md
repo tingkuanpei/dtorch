@@ -377,7 +377,6 @@ class DiffusionPipeline:
 | 文档 | 说明 |
 |---|---|
 | [python_api_overview.md](python_api_overview.md) | Python API 使用指南 |
-| [architecture.md](../developer_guide/architecture.md) | DTorch 整体架构文档 |
 
 ### 外部参考
 

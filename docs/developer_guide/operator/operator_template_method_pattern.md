@@ -74,7 +74,7 @@ virtual std::string GetDescribeString() const { return OpTypeToString(GetOpType(
 
 **每个派生类都应重写此方法**，用于调试输出、日志记录和 Graph 可视化。基类默认实现仅返回算子类型名称（如 `"Matmul"`），缺少上下文信息，不利于问题排查。
 
-> 详细的实现指南和代码示例见 [How To Add Operator §2.4.1](how_to_add_operator.md#241-getdescribestring-实现指南)。
+> 详细的实现指南和代码示例见 [How To Add Operator §2.4](how_to_add_operator.md#24-实现-operator-类并重写虚函数)。
 
 **重写要求**：
 

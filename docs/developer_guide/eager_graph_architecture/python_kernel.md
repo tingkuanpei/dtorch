@@ -236,4 +236,4 @@ Python 代码中可能切换 CUDA Stream（如 `torch.cuda.set_stream()`），�
 
 - [Kernel 运行时](kernel_runtime.md) — Blob、Kernel、KernelStream 执行映射
 - [Operator 算子体系](../operator/operator.md) — Operator 基类、模板方法模式与完整生命周期
-- [设计理念](../design_concept.md) — Eager Graph Architecture 三大核心设计
+- [设计理念](../key_concept.md) — Eager Graph Architecture 三大核心设计

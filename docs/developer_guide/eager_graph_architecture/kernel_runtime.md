@@ -393,7 +393,7 @@ Client (Python)          Controller (C++)           Worker (KernelStream 线程)
 
 ## 10. 相关文档
 
-- [设计理念](../design_concept.md) — Eager Graph Architecture 三大核心设计
+- [设计理念](../key_concept.md) — Eager Graph Architecture 三大核心设计
 - [LogicalGraph 计算图表示](logical_graph_representation.md) — Operand / Operator / LogicalGraph 的 DAG 结构
 - [Operator 算子体系](../operator/operator.md) — Operator 基类、模板方法模式与完整生命周期
 - [Python Kernel](python_kernel.md) — 在 C++ Kernel 中调用 Python 代码（GIL 管理、CUDA Stream 保护、类型转换）

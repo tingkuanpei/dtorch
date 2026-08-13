@@ -813,5 +813,5 @@ TensorStore 的 API 通过 CUDA Event 而非全局同步来实现生产者-消�
 
 ## 7. 相关文档
 
-- [设计理念](../design_concept.md) — Eager Graph Architecture 三大核心设计
+- [设计理念](../key_concept.md) — Eager Graph Architecture 三大核心设计
 - [Kernel 运行时：从 Operator 到 KernelStream 的执行映射](../eager_graph_architecture/kernel_runtime.md) — Kernel 的生命周期、KernelStream 调度

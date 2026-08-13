@@ -711,4 +711,3 @@ Tensor MyClip(const Tensor& input, double min_val, double max_val) {
 | [Operator 类说明](operators_class.md) | Operator 基类结构、派生类体系、生命周期 |
 | [Operators Mapping](operators_mapping.md) | Python ↔ C++ API ↔ C++ 核心算子的映射关系 |
 | [算子代价估算 (OperatorCost)](operator_cost.md) | `OperatorCost` 类、FLOPs / 带宽估算、`GetOperatorCost()` 覆写约定与公式推导 |
-| [Architecture](../architecture.md) | DTorch 整体架构（Single-Controller、Distributed Tensor、Eager Graph） |

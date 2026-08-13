@@ -17,10 +17,15 @@ theme:
   icon:
     logo: material/function-variant
   features:
-    - navigation.tabs
-    - navigation.sections
-    - navigation.expand
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - navigation.footer
     - navigation.indexes
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.path
+    - navigation.tabs
     - navigation.top
     - search.suggest
     - search.highlight
@@ -53,6 +58,9 @@ markdown_extensions:
   - toc:
       permalink: true
       toc_depth: 3
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -85,13 +93,17 @@ nav:
       - Python API OverView: user_guide/python_api_overview.md
       - Module 并行: user_guide/module_parallel.md
   - Developer Guide:
-      - 总体架构: developer_guide/architecture.md
-      - 设计理念: developer_guide/design_concept.md
-      - Single-Controller 架构: developer_guide/single_controller.md
-      - Distributed Tensor: developer_guide/distributed_tensor.md
-      - Eager Graph 架构:
-          - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
-          - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md
-          - Layer 2 · Kernel 运行时: developer_guide/eager_graph_architecture/kernel_runtime.md
-          - Layer 3 · GraphExecutor: developer_guide/eager_graph_architecture/graph_executor.md
-          - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate.md
+      - 总览:
+          - 项目概述: developer_guide/project_overview.md
+          - 关键概念: developer_guide/key_concept.md
+      - 核心架构:
+          - Distributed Tensor: developer_guide/distributed_tensor.md
+          - Single-Controller 架构: developer_guide/single_controller.md
+          - Eager Graph 架构:
+              - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
+              - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md
+              - Layer 2 · Kernel 运行时: developer_guide/eager_graph_architecture/kernel_runtime.md
+              - Layer 3 · GraphExecutor: developer_guide/eager_graph_architecture/graph_executor.md
+              - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate.md
+      - 设计决策: developer_guide/design_decisions.md
+      - 文档索引: developer_guide/document_index.md
