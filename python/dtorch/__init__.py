@@ -27,6 +27,7 @@ from dtorch.distributed_spec import (
     Partial,
     init_device_mesh,
     get_default_device_mesh,
+    assign_layers_to_stages,
 )
 from dtorch.tensor import Tensor, tensor, TensorFuture
 from dtorch.graph import Graph, GraphOption, VoidFutureCollect

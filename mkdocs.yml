@@ -93,6 +93,7 @@ nav:
       - Distributed Tensor: user_guide/distributed_tensor_overview.md
       - Python API OverView: user_guide/python_api_overview.md
       - Module 并行: user_guide/module_parallel.md
+      - Llama 并行示例: user_guide/llama_parallel.md
   - Developer Guide:
       - 总览:
           - 项目概述: developer_guide/project_overview.md

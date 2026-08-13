@@ -15,7 +15,8 @@
 | [User Guide](../user_guide/user_guide.md) | 上手 DTorch：先理解 DTensor 核心概念，再学习用 Python API 编写分布式程序 |
 | [Distributed Tensor Overview](../user_guide/distributed_tensor_overview.md) | DTensor 的 DeviceMesh 与 Placements 概念入门 |
 | [Python API 使用指南](../user_guide/python_api_overview.md) | Tensor 创建、算子调用、DTensor 原生支持、Placements 推导、Redistribute、单卡模拟分布式、异步取值 |
-| [Module 并行](../user_guide/module_parallel.md) | Linear 的 tp_dim / tp_shard_type、ColumnParallelLinear / RowParallelLinear 子类、Llama DP+TP 完整示例 |
+| [Module 并行](../user_guide/module_parallel.md) | Linear 的 tp_dim / tp_shard_type、ColumnParallelLinear / RowParallelLinear 子类、DP/TP/CP/PP 在 Module 层的使用方式 |
+| [Llama 并行示例](../user_guide/llama_parallel.md) | 以 Llama 模型为例，展示 DP + TP + PP + CP 的完整实现（层到 stage 划分、RoPE 与 CP、并行策略测试） |
 | [扩散模型推理应用](../user_guide/applications.md) | 目录结构、DTorch API 适配修改、ExecuteConfig、分布式、Cache、量化、算子融合 |
 
 ## 架构与设计

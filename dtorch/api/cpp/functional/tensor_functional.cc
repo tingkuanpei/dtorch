@@ -333,6 +333,10 @@ void _Copy(Tensor input, const Tensor& other) {
         formatedTensor = _Redistribute(other, deviceMesh, placements);
     } else if (input.IsDistributed() && other.IsDistributed()) {
         formatedTensor = _Redistribute(other, input.GetDeviceMesh(), input.GetPlacementSeq().Vec());
+    } else if (input.GetDeviceMesh() != other.GetDeviceMesh()) {
+        // Both non-distributed but on different device-mesh shapes (e.g. [1] vs [1, 1, 1]);
+        // reshape the source to the input's mesh so the copy kernel sees equal meshes.
+        formatedTensor = _Redistribute(other, input.GetDeviceMesh(), std::nullopt);
     }
 
     std::unique_ptr<core::CopyParam> param(new core::CopyParam());

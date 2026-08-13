@@ -1,6 +1,6 @@
 # Module 并行：实现 DP/TP/CP/PP 组合
 
-DTorch 的 `Module` 体系在接口与用法上与 PyTorch 完全一致——用户编写的模型代码无需任何改动即可在 DTorch 中运行；在此基础上，为了支持分布式，DTorch 为 `Module`（`nn.Module` 子类）增加了少量扩展能力，在保持单卡写法的同时原生支持 **Data Parallel、Tensor Parallel、Context Parallel、Pipeline Parallel** 等的组合。本文以 `Linear` 和 Llama 模型为例进行说明。
+DTorch 的 `Module` 体系在接口与用法上与 PyTorch 完全一致——用户编写的模型代码无需任何改动即可在 DTorch 中运行；在此基础上，为了支持分布式，DTorch 为 `Module`（`nn.Module` 子类）增加了少量扩展能力，在保持单卡写法的同时原生支持 **Data Parallel、Tensor Parallel、Context Parallel、Pipeline Parallel** 等的组合。本文以 `Linear` 为例说明 Module 层的并行机制；Llama 模型的完整 DP + TP + PP + CP 示例见 [Llama 并行示例](llama_parallel.md)。
 
 前置阅读：[Python API 概览](python_api_overview.md) 的 DTensor 与 `redistribute()` 章节。
 
@@ -116,48 +116,50 @@ print(out.placements)    # [Shard(0), Shard(2), Shard(2)]
 
 核心是三个工具：
 
-- `device_mesh.to_pp_list()`：将 `"pp"` 维度展开为一组一维 `DeviceMesh`，每个对应一个 stage。
-- `pp_avg_split(num_layers, pp_stages)`：计算每一层所属的 stage 编号，把层均匀映射到各 stage。
-- `device_mesh_guard(layer_device_mesh)`：上下文管理器，把在其内创建的子 Module 绑定到指定 stage 的设备。
+- `device_mesh.unbind("pp")`：将 `"pp"` 维度展开为若干子 `DeviceMesh`，每个对应一个 stage（即去掉 `"pp"` 维、其余维度保持不变的子 mesh；例如 `dp×tp×pp` 的 mesh 会得到一组 `dp×tp` 的 stage mesh）。当 DeviceMesh 不含 `"pp"` 维时，返回 `[device_mesh]`，退化为单 stage。
+- `assign_layers_to_stages(num_layers, num_stages)`：把 `num_layers` 层均匀映射到 `num_stages` 个 stage，返回长度为 `num_layers` 的列表，其第 *i* 项即第 *i* 层所属的 stage 编号（无法整除时靠前的 stage 多分一层）。
+- `Graph.default_graph().device_mesh_guard(stage_mesh)`：上下文管理器，把在其内创建的子 Module 绑定到指定 stage 的设备。
 
 ```python
 import dtorch
-from dtorch import nn, DeviceMesh, get_device_mesh, device_mesh_guard, pp_avg_split
+from dtorch import nn, Graph, DeviceMesh, init_device_mesh, assign_layers_to_stages
 
 class Transformer(nn.Module):
     def __init__(self, device_mesh: DeviceMesh):
         super().__init__()
-        num_layers = 2
+        num_layers = 4
 
-        # 1. 展开 pp 维度，得到每个 stage 的 DeviceMesh
-        self.device_mesh_pp_list = device_mesh.to_pp_list()
-        pp_stages = len(self.device_mesh_pp_list)
-        # 2. 把每一层均匀映射到某个 stage
-        self.pp_id_of_layers = pp_avg_split(num_layers, pp_stages)
+        # 1. 展开 pp 维度，得到每个 stage 的 DeviceMesh（去掉 "pp" 维后的子 mesh）
+        self.pp_stage_meshes = device_mesh.unbind("pp")
+        pp_stages = len(self.pp_stage_meshes)
+        # 2. 把每一层均匀映射到某个 stage，得到每层所属的 stage 编号
+        self.layer_stage_ids = assign_layers_to_stages(num_layers, pp_stages)
 
-        self.tok_embeddings = nn.Embedding(device_mesh=self.device_mesh_pp_list[0], ...)
+        # 3. 将每个子 Module 绑定到其所属 stage 的 DeviceMesh
+        with Graph.default_graph().device_mesh_guard(self.pp_stage_meshes[0]):
+            self.tok_embeddings = nn.EmbeddingWithReplicateOutput(vocab_size, hidden_size)
 
-        self.layers = dtorch.nn.ModuleList()
+        self.layers = nn.ModuleList()
         for layer_id in range(num_layers):
-            # 3. 将该层绑定到其所属 stage 的 DeviceMesh
-            layer_device_mesh = self.device_mesh_pp_list[self.pp_id_of_layers[layer_id]]
-            with device_mesh_guard(layer_device_mesh):
+            layer_device_mesh = self.pp_stage_meshes[self.layer_stage_ids[layer_id]]
+            with Graph.default_graph().device_mesh_guard(layer_device_mesh):
                 self.layers.append(TransformerBlock(...))
 
-        self.output = nn.Linear(device_mesh=self.device_mesh_pp_list[-1])
+        with Graph.default_graph().device_mesh_guard(self.pp_stage_meshes[-1]):
+            self.output = nn.Linear(hidden_size, vocab_size)
 
     def forward(self, tokens: dtorch.Tensor):
         h = self.tok_embeddings(tokens)
 
         for layer_id, layer in enumerate(self.layers):
-            layer_device_mesh = self.device_mesh_pp_list[self.pp_id_of_layers[layer_id]]
-            h.redistribute(device_mesh=layer_device_mesh)   # 跨 stage 时自动搬运激活
+            layer_device_mesh = self.pp_stage_meshes[self.layer_stage_ids[layer_id]]
+            h = h.redistribute(device_mesh=layer_device_mesh)   # 跨 stage 时自动搬运激活
             h = layer(h, self.freqs_cis)
 
         output = self.output(h).float()
         return output
 
-device_mesh = get_device_mesh("cuda", mesh_shape=(2), dim_name=["pp"])
+device_mesh = init_device_mesh("cuda", (dp, tp, pp), mesh_dim_names=["dp", "tp", "pp"])
 model = Transformer(device_mesh)
 x = dtorch.randn(batch_size, in_dim, device="cuda")
 y = model(x)
@@ -167,98 +169,7 @@ y = model(x)
 
 ---
 
-## 3. Llama 模型示例：DP + TP 支持
-
-以下以 Llama 模型为例，展示如何使用 DTorch 的 `DeviceMesh` 和 `Module` 体系实现 DP 和 TP。
-
-完整代码见 [`python/dtorch/test/modules/llama.py`](https://github.com/tingkuanpei/dtorch/blob/main/python/dtorch/test/modules/llama.py)。
-
-**LlamaForCausalLM** — 顶层模型，指定 DeviceMesh 并配置分布式策略：
-
-```python
-class LlamaForCausalLM(nn.Module):
-    def __init__(self, config, device_mesh=None):
-        super().__init__()
-        device_mesh = get_default_device_mesh(device_mesh=device_mesh)
-        device_mesh.check_all_dim_names_in_set({"dp", "tp"})
-
-        with Graph.default_graph().device_mesh_guard(device_mesh):
-            self.model = LlamaModel(config)
-            self.lm_head = nn.ColumnParallelLinear(
-                config.hidden_size, config.vocab_size, bias=False,
-            )
-
-    def redistribute_input(self, input_ids):
-        # 保存输入原始的 placements，输出时恢复
-        self.input_device_mesh = input_ids.device_mesh
-        self.input_placement = input_ids.placements
-
-        # 将输入重分布到模型期望的分布
-        input_ids = input_ids.redistribute_by_dict(
-            self.first_param_device_mesh(),
-            placements_dict={"dp": Shard(0), "tp": Replicate()},
-        )
-        return [input_ids], {}
-
-    def redistribute_output(self, logits):
-        # 恢复为输入的原始分布
-        return logits.redistribute(
-            self.input_device_mesh, placements=self.input_placement
-        )
-```
-
-关键点：
-
-- 使用 `device_mesh_guard` 上下文管理器，将 DeviceMesh 传递给所有子模块
-- `check_all_dim_names_in_set({"dp", "tp"})` 确保 DeviceMesh 的维度名不超出支持范围
-- `redistribute_input` 将输入从任意分布自动转换为模型期望的分布
-- `placements_dict={"dp": Shard(0), "tp": Replicate()}`：`"dp"` 维按 batch（第 0 维）切分输入，正是 DP 的来源；`"tp"` 维保持 `Replicate()`，因为 TP 由各层权重切分承担、输入无需切分
-- `redistribute_output` 将输出恢复为输入时的分布，保证对外透明
-
-**LlamaSdpaAttention** — 使用 ColumnParallel + RowParallel 实现 TP：
-
-```python
-class LlamaSdpaAttention(nn.Module):
-    def __init__(self, config, layer_idx=None):
-        ...
-        self.q_proj = nn.ColumnParallelLinear(
-            self.hidden_size, self.num_heads * self.head_dim, bias=config.attention_bias,
-        )
-        self.k_proj = nn.ColumnParallelLinear(...)
-        self.v_proj = nn.ColumnParallelLinear(...)
-        self.o_proj = nn.RowParallelLinearWithReplicateOutput(
-            self.num_heads * self.head_dim, self.hidden_size, bias=config.attention_bias,
-        )
-```
-
-- `q_proj` / `k_proj` / `v_proj` 使用 **ColumnParallelLinear**：在 tp 维度上按输出列切分权重，每个设备负责部分 attention head
-- `o_proj` 使用 **RowParallelLinearWithReplicateOutput**：接受 Attention 输出的 Shard，输出自动 Replicate（mlp 需要 replicate 输入）
-
-**LlamaMLP** — 同样的 ColumnParallel + RowParallel 模式：
-
-```python
-class LlamaMLP(nn.Module):
-    def __init__(self, config):
-        self.gate_proj = nn.ColumnParallelLinear(
-            self.hidden_size, self.intermediate_size, bias=config.mlp_bias,
-        )
-        self.up_proj = nn.ColumnParallelLinear(...)
-        self.down_proj = nn.RowParallelLinearWithReplicateOutput(
-            self.intermediate_size, self.hidden_size, bias=config.mlp_bias,
-        )
-```
-
-**Embedding** — 使用 `EmbeddingWithReplicateOutput`：
-
-```python
-self.embed_tokens = nn.EmbeddingWithReplicateOutput(
-    config.vocab_size, config.hidden_size
-)
-```
-
----
-
-## 4. Linear 实现解析
+## 3. Linear 实现解析
 
 DTorch 的 `Linear` 模块（[`源码`](https://github.com/tingkuanpei/dtorch/blob/main/python/dtorch/nn/modules/linear.py)）原生支持 DP、TP、CP 等多种并行策略。其核心原则是：**只有 TP 维度需要切分 Weight，DP 和 CP 维度上 Weight 始终保持完整复制（`Replicate()`）**。
 
@@ -366,4 +277,4 @@ def redistribute_output(self, output, output_placement=None):
 | `RowParallelLinearWithReplicateOutput` | `"tp"` | `"row"` | 校验输入为 Shard(-1) | 输出转为 Replicate |
 | `ReplicateParallelLinear` | `None` | — | 不做校验 | 不做转换 |
 
-其中最常用的是 `ColumnParallelLinear` + `RowParallelLinearWithReplicateOutput` 组合（见第 3 节 Llama 示例）。
+其中最常用的是 `ColumnParallelLinear` + `RowParallelLinearWithReplicateOutput` 组合（见 [Llama 并行示例](llama_parallel.md)）。

@@ -5,7 +5,7 @@ Author: Tingkuan Pei(contact: peitingkuan@163.com)
 """
 
 import re
-from typing import cast, Optional, Union, Sequence, Tuple, Any, Dict, Set
+from typing import cast, Optional, Union, Sequence, Tuple, Any, Dict, Set, List
 import math
 
 import torch
@@ -192,6 +192,23 @@ def init_device_mesh(
     with torch.device("cpu"):
         mesh = torch.arange(math.prod(mesh_shape), dtype=torch.int).view(mesh_shape)
     return DeviceMesh(device_type, mesh, mesh_dim_names=mesh_dim_names)
+
+
+def assign_layers_to_stages(num_layers: int, num_stages: int) -> List[int]:
+    """Map each of ``num_layers`` layers to a pipeline stage, distributing them
+    as evenly as possible across ``num_stages`` stages.
+
+    Returns a list of length ``num_layers`` whose entry *i* is the stage id
+    assigned to layer *i*. Earlier stages receive the extra layer when the split
+    is uneven, e.g. ``assign_layers_to_stages(4, 2) -> [0, 0, 1, 1]`` and
+    ``assign_layers_to_stages(5, 2) -> [0, 0, 0, 1, 1]``.
+    """
+    assert num_stages > 0
+    base, rem = divmod(num_layers, num_stages)
+    stage_ids: List[int] = []
+    for stage in range(num_stages):
+        stage_ids.extend([stage] * (base + (1 if stage < rem else 0)))
+    return stage_ids
 
 
 def get_default_device_mesh(

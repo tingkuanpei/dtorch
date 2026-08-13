@@ -6,4 +6,5 @@
 
 1. **[DTensor 概览](distributed_tensor_overview.md)** — 了解 `DeviceMesh` 与 `Placements` 如何描述张量在多设备上的分布。这是 DTorch 全部分布式能力的基石，建议先读。
 2. **[Python API 概览](python_api_overview.md)** — 在单卡 PyTorch 代码的基础上，只需声明 `device_mesh` 和 `placements`，即可扩展为多卡分布式程序。
-3. **[Module 并行](module_parallel.md)** — `Linear` 与 `nn.Module` 如何组合实现 DP / TP / CP，附 Llama 完整示例。
+3. **[Module 并行](module_parallel.md)** — `Linear` 与 `nn.Module` 如何组合实现 DP / TP / CP。
+4. **[Llama 并行示例](llama_parallel.md)** — 以 Llama 模型为例，展示 DP + TP + PP + CP 的完整实现与测试。

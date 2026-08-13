@@ -36,8 +36,8 @@ mesh = DeviceMesh("cuda")
 mesh = DeviceMesh("cuda", [[0, 1], [2, 3]], mesh_dim_names=["dp", "tp"])  # 2D: dp=2, tp=2
 
 # 方式 2：通过 init_device_mesh 创建（推荐）
-mesh = init_device_mesh("cuda", 2, mesh_dim_names=["dp"])             # 1D: 2 卡 DP
-mesh = init_device_mesh("cuda", (2, 2), mesh_dim_names=["dp", "tp"])  # 2D: dp=2, tp=2
+mesh = init_device_mesh("cuda", mesh_shape=2, mesh_dim_names=["dp"])             # 1D: 2 卡 DP
+mesh = init_device_mesh("cuda", mesh_shape=(2, 2), mesh_dim_names=["dp", "tp"])  # 2D: dp=2, tp=2
 ```
 
 ### DTensor 的创建

@@ -6,7 +6,8 @@ DTensor 的基本概念、常用 API 与 Module 级并行用法已在用户指�
 
 - 基本概念（DeviceMesh、Placements、三种 Placement 策略、多维分布的读法）见 [Distributed Tensor Overview](../user_guide/distributed_tensor_overview.md)
 - DTensor 的创建、算子推导、`redistribute` 等常用 API 见 [Python API Overview](../user_guide/python_api_overview.md)
-- DP/TP/CP/PP 的 Module 级用法（内置并行层、Llama 完整示例）见 [Module 并行](../user_guide/module_parallel.md)
+- DP/TP/CP/PP 的 Module 级用法见 [Module 并行](../user_guide/module_parallel.md)
+- Llama 模型的 DP+TP+PP+CP 完整示例见 [Llama 并行示例](../user_guide/llama_parallel.md)
 
 > PyTorch 中虽也支持 DTensor，但至今仍处于 [alpha 阶段](https://docs.pytorch.org/docs/stable/distributed.tensor.html)。
 
