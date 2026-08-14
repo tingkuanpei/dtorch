@@ -1,5 +1,7 @@
 # Single-Client Single-Controller Multi-Worker
 
+前置阅读：[Single-Controller 与 Multi-Controller](single_and_multi_controller.md)（两种控制范式的概念介绍）。
+
 DTorch 的分布式执行模型由一个 Python Client、一个中央 Controller 和多个 Worker 组成。Client 负责描述计算节点并异步发送给 Controller，Controller 统一构建计算图并调度资源，Worker 并行执行 Kernel。三者通过异步消息传递流水线式推进，仅在获取 Tensor 值时同步等待，兼顾了编程易用性与分布式执行效率。
 
 ## 1. 架构总览

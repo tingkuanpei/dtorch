@@ -97,6 +97,7 @@ nav:
   - Developer Guide:
       - 总览:
           - 项目概述: developer_guide/project_overview.md
+          - Single-Controller 与 Multi-Controller: developer_guide/single_and_multi_controller.md
           - 关键概念: developer_guide/key_concept.md
       - 核心架构:
           - Single-Controller 架构: developer_guide/single_controller.md
@@ -110,3 +111,5 @@ nav:
       - 设计决策: developer_guide/design_decisions.md
       - 文档索引: developer_guide/document_index.md
   - Performance: developer_guide/debug_alignment_optimization/performance.md
+  - Blog:
+    - DTorch 架构设计：简洁与高效何以兼得: blog/dtorch_architecture.md
