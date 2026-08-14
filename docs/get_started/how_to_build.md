@@ -8,6 +8,10 @@ script/install_zmq_ubuntu.sh
 script/install_grpc_ubuntu.sh
 ```
 
+```bash
+pip install scikit-build-core torch==2.8.0 cmake==4.3.2
+```
+
 ### Editable install (development)
 ```bash
 pip install -v --no-build-isolation -e .

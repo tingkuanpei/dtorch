@@ -72,10 +72,19 @@ dist.destroy_process_group()
 
 ## Highlights
 
-- 🔥 **Easy to Use.** By far the easiest-to-use distributed API for PyTorch — just like writing single-device PyTorch code. You describe the distributed computation as ordinary PyTorch code on a single thread, and the framework automatically handles task dispatch, scheduling, and communication across the cluster. (This makes it easy to orchestrate heterogeneous workloads — placing different models on different GPUs, or interleaving inference and training across RL rollouts and updates.)
+- 🔥🔥🔥 **Easy to Use.** By far the easiest-to-use distributed API for PyTorch — just like writing single-device PyTorch code. You describe the distributed computation as ordinary PyTorch code on a single thread, and the framework automatically handles task dispatch, scheduling, and communication across the cluster. (This makes it easy to orchestrate heterogeneous workloads — placing different models on different GPUs, or interleaving inference and training across RL rollouts and updates.)
+- 🔥**Lower CPU overhead.** Benefiting from DTorch's asynchronous execution, the Python thread only constructs compute nodes — it never executes them directly. Combined with awaitable `TensorFuture`s, this keeps the interpreter light and minimizes GPU idle time caused by slow CPU-side kernel launches.
 - **Single-Controller.** One python thread drives the entire cluster — no multi-process launch, no SPMD, no `ProcessGroup`.
 - **DTensor Native.** Every tensor in DTorch is a `DTensor`, and every operator works on it natively. No manual shape sharding, no manual `all_gather` across ranks — you just declare the tensor and print it directly.
-- **PyTorch-compatible API.** DTorch provides an API consistent with PyTorch — tensors, operators, modules, and dtypes map one-to-one.
-- **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring), Pipeline Parallel and Expert Parallel — all expressible in the same code, and **freely composable**.
-- **Asynchronous Computation.** DTorch uses asynchronous execution to overlap the distributed system's scheduling overhead with computation. This also provides a range of performance-optimization opportunities.
-- **Lower CPU overhead.** Benefiting from DTorch's asynchronous execution, the Python thread only constructs compute nodes — it never executes them directly. Combined with awaitable `TensorFuture`s, this keeps the interpreter light and minimizes GPU idle time caused by slow CPU-side kernel launches.
+- **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring) and Pipeline Parallel — all expressible in the same code, and **freely composable**. See the [Llama parallel guide](https://tingkuanpei.github.io/dtorch/user_guide/llama_parallel/) for a complete DP + TP + PP + CP example.
+
+---
+
+## Documentation
+
+Not sure what to read? Start here:
+
+- 🚀 **New to DTorch?** Read [Get Started](get_started/get_started.md) — build DTorch from source, then verify distributed inference of Llama and diffusion models (SD3 / FLUX).
+- 📖 **Want to write distributed programs?** Follow the [User Guide](user_guide/user_guide.md): DTensor core concepts → [Python API](user_guide/python_api_overview.md) → [Module parallel](user_guide/module_parallel.md) → the complete [Llama DP + TP + PP + CP example](user_guide/llama_parallel.md).
+- 🏗️ **Want to understand the engine?** Start from [Project Overview](developer_guide/project_overview.md) and [Key Concepts](developer_guide/key_concept.md), then read [Design Decisions](developer_guide/design_decisions.md) and the four-layer [Eager Graph Architecture](developer_guide/eager_graph_architecture/eager_graph_architecture.md). The [Document Index](developer_guide/document_index.md) lists everything else.
+- ⚡ **Performance** — see the [performance analysis and optimization](developer_guide/debug_alignment_optimization/performance.md) guide.
