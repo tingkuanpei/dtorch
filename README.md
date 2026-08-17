@@ -1,10 +1,10 @@
-# DTorch: An easy-to-use distributed inference API for PyTorch
+# DTorch: Easy-to-use distributed inference API for PyTorch
 
 <p align="center">
 | <a href="https://tingkuanpei.github.io/dtorch/"><b>Documentation</b></a> | <a href="https://tingkuanpei.github.io/dtorch/"><b>Blog</b></a> |
 </p>
 
-**DTorch is an easy-to-use distributed inference API for PyTorch.** No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-device code, then make one small change: replace `Tensor` by `DTensor`. DTorch will automatically handle resource management, scheduling, and communication.
+**DTorch is an easy-to-use distributed inference API for PyTorch.**, No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-device code, then make one small change: replace `Tensor` by `DTensor` — DTorch will automatically handle resource management, scheduling, and communication.
 
 ---
 
