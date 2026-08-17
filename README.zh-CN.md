@@ -1,4 +1,8 @@
-# DTorch
+# DTorch：易用的 PyTorch 分布式推理 API
+
+<p align="center">
+| <a href="https://tingkuanpei.github.io/dtorch/"><b>文档</b></a> | <a href="https://tingkuanpei.github.io/dtorch/blog/introduction/"><b>博客</b></a> | <a href="README.md"><b>English</b></a> |
+</p>
 
 **DTorch 是一套易用的 PyTorch 分布式推理 API。** 无需多进程、无需 SPMD、无需配置 `ProcessGroup` —— 只需编写单卡代码，再做一处小小的改动：用 `DTensor` 替换 `Tensor` —— DTorch 会自动处理资源管理、调度与通信。
 
@@ -71,6 +75,14 @@ dist.destroy_process_group()
 
 ---
 
+## 新闻
+
+- [2026-08-17] 博客：[DTorch 介绍](https://tingkuanpei.github.io/dtorch/blog/introduction/) —— 基于 Single-Controller 与 Distributed Tensor 的易用 PyTorch 分布式推理 API。
+- [2026-08-17] 博客：[DTorch 架构设计：简洁与高效何以兼得](https://tingkuanpei.github.io/dtorch/blog/architecture/)
+- [2026-08-17] 博客：[DTorch 的优势与机遇](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)
+
+---
+
 ## 特性亮点
 
 - 🔥🔥🔥 **易用。** 目前最易用的 PyTorch 分布式 API —— 写起来就和单卡 PyTorch 代码一样。你在单线程中以普通 PyTorch 代码描述分布式计算，框架自动完成任务分发、调度与跨集群通信。（这也让编排异构负载变得轻松 —— 把不同模型放到不同 GPU 上，或在 RL 的 rollout 与训练更新之间交替执行推理。）
@@ -81,17 +93,23 @@ dist.destroy_process_group()
 
 ---
 
-## 文档
+## 快速开始
 
-不知道从哪里读起？从这里开始：
+DTorch 目前仅支持从源码安装 —— 构建步骤与示例见[快速开始](https://tingkuanpei.github.io/dtorch/get_started/get_started/)。
 
-- 🚀 **初次接触 DTorch？** 阅读[快速开始](get_started/get_started.md) —— 从源码构建 DTorch，然后验证 Llama 与扩散模型（SD3 / FLUX）的分布式推理。
-- 📖 **想编写分布式程序？** 跟随 [User Guide](user_guide/user_guide.md)：DTensor 核心概念 → [Python API](user_guide/python_api_overview.md) → [Module 并行](user_guide/module_parallel.md) → 完整的 [Llama DP + TP + PP + CP 示例](user_guide/llama_parallel.md)。
-- 🏗️ **想理解引擎？** 从[项目概述](developer_guide/project_overview.md)和[关键概念](developer_guide/key_concept.md)入手，再读[设计决策](developer_guide/design_decisions.md)与四层结构的 [Eager Graph 架构](developer_guide/eager_graph_architecture/eager_graph_architecture.md)。[文档索引](developer_guide/document_index.md)列出了其余全部文档。
-- ⚡ **性能** —— 见[性能分析与优化](developer_guide/debug_alignment_optimization/performance.md)指南。
+欢迎访问我们的[文档](https://tingkuanpei.github.io/dtorch)了解更多。
+
+- [用户指南](https://tingkuanpei.github.io/dtorch/user_guide/user_guide/) —— 理解 DTensor 核心概念，使用 Python API 编写分布式程序。
+- [开发者指南](https://tingkuanpei.github.io/dtorch/developer_guide/project_overview/) —— DTorch 引擎的架构、设计决策与内部实现。
 
 ---
 
 ## 寻求支持
 
 DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **peitingkuan@163.com**。
+
+---
+
+## 致谢
+
+DTorch 的设计与实现参考了 [PyTorch](https://github.com/pytorch/pytorch)、[OneFlow](https://arxiv.org/abs/2110.15032)、[Pathways](https://arxiv.org/abs/2203.12533)、[Megatron-LM](https://github.com/NVIDIA/Megatron-LM)、[vLLM](https://github.com/vllm-project/vllm) 和 [veRL](https://arxiv.org/html/2409.19256v1) 等项目。

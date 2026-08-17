@@ -1,6 +1,6 @@
 # DTorch 架构设计：简洁与高效何以兼得
 
-DTorch 是一个基于 Single-Controller 和 Distributed Tensor 架构的分布式深度学习 API，目标是让用户在不修改代码逻辑的前提下，将单卡 PyTorch 程序扩展到多卡分布式环境。本文介绍 DTorch 架构背后的设计动机，以及支撑它的三大核心设计。
+DTorch 是一套基于 Single-Controller 和 Distributed Tensor 架构的分布式深度学习 API，目标是让用户在不修改代码逻辑的前提下，将单卡 PyTorch 程序扩展到多卡分布式环境。本文介绍 DTorch 架构背后的设计动机，以及支撑它的三大核心设计。
 
 前置阅读：
 
@@ -25,7 +25,10 @@ DTorch 正是围绕这一洞察构建了一套简洁且高效的深度学习 API
 
 用户使用 DTorch API 时，只需在单线程 Python 代码中用 DTensor 描述计算（创建 Tensor、调用 Operator），框架便会自动完成分布式集群上的资源管理、任务分发与通讯等操作。DTorch 中有三类角色：Client、Controller 和 Worker，构成 Single-Client Single-Controller Multi-Worker 架构，如下图所示。
 
-![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker.png)
+<figure markdown>
+  ![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker.png)
+  <figcaption>图 1：Client、Controller 和 Worker 并发执行，并通过 Queue 异步通信</figcaption>
+</figure>
 
 **Single-Client** 即 Python Client。用户在 Python Client 中创建 Tensor、调用 Operator、获取 Tensor 的值，这些操作都会被抽象为"计算节点"，序列化成消息（Messages）异步发送给 Controller。Python Client 不会直接创建 CUDA Memory，也不会直接 Launch CUDA Kernel。
 
@@ -69,7 +72,11 @@ PyTorch 受限于对既有 Module 代码的兼容，只能通过 [parallelize_mo
 
 Eager Graph Architecture 是一个基于 Graph 的执行引擎，对外却提供 Eager 接口。用户在 Single-Client 上以 Eager 方式创建计算节点（创建 Tensor、执行 Operator、获取 Tensor 的值等），计算节点被序列化成消息异步发送给 Controller；Controller 根据接收到的消息创建计算子图（并非完整的计算图，而是增量子图），并交给 Graph 引擎执行。由此，DTorch 既保留了 Eager 接口的易用性，又获得了基于子图的全局优化能力。
 
-![Eager Graph 架构图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/eager_graph_architecture.png)
+
+<figure markdown>
+  ![Eager Graph 架构图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/eager_graph_architecture.png)
+  <figcaption>图 2：Eager Graph Architecture 架构图</figcaption>
+</figure>
 
 ### 4.1 图表示
 

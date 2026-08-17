@@ -10,7 +10,10 @@ DTorch 的分布式执行模型由一个 Python Client、一个中央 Controller
 Operator），框架自动完成分布式集群上的资源管理、任务分发和通讯等操作。DTorch 中包含三类角色：**Client**、**Controller** 和 **Worker**，共同构成
 Single-Client Single-Controller Multi-Worker 的异步分布式执行模型：
 
-![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker.png)
+<figure markdown>
+  ![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker.png)
+  <figcaption>图 1：Client、Controller 和 Worker 并发执行，并通过 Queue 异步通信</figcaption>
+</figure>
 
 ### 1.1 Single-Client
 
@@ -85,7 +88,10 @@ TensorFlow v1 中被使用，并在 [Pathway](https://arxiv.org/abs/2203.12533) 
 
 **Multi-Controller** 则创建多个 Controller 进程，每个进程只管理一个 GPU，因此在分布式集群的**局部视角**下编程。所有进程执行同一份代码描述计算流程并直接调度 GPU 资源（SPMD 范式）。
 
-![Single-Controller vs Multi-Controller](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/single_controller_vs_multi_controller.png)
+<figure markdown>
+  ![Single-Controller vs Multi-Controller](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/single_controller_vs_multi_controller.png)
+  <figcaption>图 2：Single-Controller(左图)和 Multi-Controller(右图)的示意图</figcaption>
+</figure>
 
 Single-Controller 和 Multi-Controller 是 DTorch 和 PyTorch 最根本的差异。两者对比如下：
 

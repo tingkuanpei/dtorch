@@ -19,6 +19,7 @@ Placement 的切分策略如下：
 
 <figure markdown>
   ![DTensor 概念图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/dtensor.png)
+  <figcaption>图 1：DTensor 的 DeviceMesh 与 Placements 示意</figcaption>
 </figure>
 
 ## 多维分布

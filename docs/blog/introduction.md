@@ -1,8 +1,8 @@
-# DTorch：Easy-to-use Distributed Inference API for PyTorch Based on Single-Controller and Distributed Tensor
+# DTorch：更易用的 PyTorch 分布式推理 API——基于 Single-Controller 与 Distributed Tensor
 
 ## 1 概述
 
-**DTorch 是一个易用的 PyTorch 分布式推理 API**，无需多进程、无需 SPMD、无需配置 `ProcessGroup`—— 只需照常编写单卡代码，再稍作改动：将 `Tensor` 替换为 `DTensor`（携带“分布在哪些设备上、如何切分”信息的 Tensor —— DTorch 会自动完成分布式系统的资源管理、调度和通信。
+**DTorch 是一套易用的 PyTorch 分布式推理 API**，无需多进程、无需 SPMD、无需配置 `ProcessGroup`—— 只需照常编写单卡代码，再稍作改动：将 `Tensor` 替换为 `DTensor`（携带“分布在哪些设备上、如何切分”信息的 Tensor） —— DTorch 会自动完成分布式系统的资源管理、调度和通信。
 
 而在 PyTorch 中，多卡程序的开发成本远高于单卡程序。使用 PyTorch 编写多卡程序时，用户需要通过 torchrun 启动多个进程、遵循 SPMD（Single Program Multi Data）范式、手动管理 ProcessGroup，并从单张 GPU 的视角描述计算。当不同 GPU 需要执行不同的代码时，用户还必须在代码中以 if-else 区分各张 GPU 的行为。两者的整体对比如表 1 所示：
 
@@ -533,7 +533,7 @@ def func():
 
 ## 6 展望
 
-Single-Controller + Distributed Tensor 是一条颇具潜力的技术路线，有望重塑当前基于 PyTorch 的分布式训练和推理生态。关于 DTorch 的差异化优势与行业机遇的进一步讨论，参见博客 [《DTorch 的差异化优势与行业机遇》](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)。
+Single-Controller + Distributed Tensor 是一条颇具潜力的技术路线，有望重塑当前基于 PyTorch 的分布式训练和推理生态。关于 DTorch 的差异化优势与行业机遇的进一步讨论，参见博客 [《DTorch 的优势与机遇》](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)。
 
 ## 7 总结
 
@@ -545,11 +545,16 @@ Single-Controller + Distributed Tensor 是一条颇具潜力的技术路线，�
 
 DTorch 的代码和文档均在 [GitHub](https://github.com/tingkuanpei/dtorch) 开源，欢迎关注与参与。
 
-## 8 致谢
+## 8 寻求支持
+
+DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **peitingkuan@163.com**。
+
+
+## 9 致谢
 
 DTorch 在设计和实现中参考了 [PyTorch](https://github.com/pytorch/pytorch)、[OneFlow](https://arxiv.org/abs/2110.15032)、[Pathways](https://arxiv.org/abs/2203.12533)、[Megatron-LM](https://github.com/NVIDIA/Megatron-LM)、[vLLM](https://github.com/vllm-project/vllm) 和 [veRL](https://arxiv.org/html/2409.19256v1) 等项目。
 
-## 9 参考链接
+## 10 参考链接
 
 1. [PyTorch Distributed Tensor](https://docs.pytorch.org/docs/stable/distributed.tensor.html)
 2. [torchtitan](https://github.com/pytorch/torchtitan)

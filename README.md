@@ -1,7 +1,7 @@
-# DTorch: Easy-to-use distributed inference API for PyTorch
+# DTorch: Easy-to-Use Distributed Inference API for PyTorch
 
 <p align="center">
-| <a href="https://tingkuanpei.github.io/dtorch/"><b>Documentation</b></a> | <a href="https://tingkuanpei.github.io/dtorch/"><b>Blog</b></a> |
+| <a href="https://tingkuanpei.github.io/dtorch/"><b>Documentation</b></a> | <a href="https://tingkuanpei.github.io/dtorch/blog/introduction/"><b>Blog</b></a> | <a href="README.zh-CN.md"><b>中文</b></a> |
 </p>
 
 **DTorch is an easy-to-use distributed inference API for PyTorch.**, No multi-processes, no SPMD, no `ProcessGroup` setup — just write single-device code, then make one small change: replace `Tensor` by `DTensor` — DTorch will automatically handle resource management, scheduling, and communication.
@@ -75,6 +75,14 @@ dist.destroy_process_group()
 
 ---
 
+## News
+
+- [2026-08-17] Blog: [Introducing DTorch](https://tingkuanpei.github.io/dtorch/blog/introduction/) — an easy-to-use distributed inference API for PyTorch based on Single-Controller and Distributed Tensor.
+- [2026-08-17] Blog: [DTorch Architecture: Combining Simplicity and Efficiency](https://tingkuanpei.github.io/dtorch/blog/architecture/)
+- [2026-08-17] Blog: [DTorch: Advantages and Opportunities](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)
+
+---
+
 ## Highlights
 
 - 🔥🔥🔥 **Easy to Use.** By far the easiest-to-use distributed API for PyTorch — just like writing single-device PyTorch code. You describe the distributed computation as ordinary PyTorch code on a single thread, and the framework automatically handles task dispatch, scheduling, and communication across the cluster. (This makes it easy to orchestrate heterogeneous workloads — placing different models on different GPUs, or interleaving inference and training across RL rollouts and updates.)
@@ -93,3 +101,15 @@ Visit our [documentation](https://tingkuanpei.github.io/dtorch) to learn more.
 
 - [UserGuide](https://tingkuanpei.github.io/dtorch/user_guide/user_guide/) — understand DTensor core concepts and write distributed programs with the Python API.
 - [DeveloperGuide](https://tingkuanpei.github.io/dtorch/developer_guide/project_overview/) — the architecture, design decisions, and internals of the DTorch engine.
+
+---
+
+## Call for Support
+
+The [Single-Controller + Distributed Tensor architecture](https://tingkuanpei.github.io/dtorch/blog/architecture/) that DTorch builds on is a [promising technical direction](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/). However, my personal resources alone are not enough to carry all of these ideas through. If you are interested in this direction, feel free to reach out at **peitingkuan@163.com**.
+
+---
+
+## Acknowledgment
+
+DTorch's design and implementation draw on the ideas of [PyTorch](https://github.com/pytorch/pytorch), [OneFlow](https://arxiv.org/abs/2110.15032), [Pathways](https://arxiv.org/abs/2203.12533), [Megatron-LM](https://github.com/NVIDIA/Megatron-LM), [vLLM](https://github.com/vllm-project/vllm), and [veRL](https://arxiv.org/html/2409.19256v1).

@@ -13,7 +13,11 @@
 
 承担这些职责的角色就是 **Controller**（控制者）。控制者的数量与位置不同，就得到了两种范式：
 
-![Single-Controller vs Multi-Controller](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/single_controller_vs_multi_controller.png)
+<figure markdown>
+  ![Single-Controller vs Multi-Controller](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/single_controller_vs_multi_controller.png)
+  <figcaption>图 1：Single-Controller(左图)和 Multi-Controller(右图)的示意图</figcaption>
+</figure>
+
 
 ## 2. Multi-Controller
 

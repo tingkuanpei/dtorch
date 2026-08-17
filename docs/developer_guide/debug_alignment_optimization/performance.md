@@ -8,7 +8,8 @@
   ||PyTorch|DTorch|
   |-|-|-|
   |峰值占用|18.131GB|17.663GB<span style="color: #4caf50; font-weight: bold;">(-2.58%)</span>|
-  <figcaption>StableDiffusion3 单机单卡 1024*1024 4step 峰值显存</figcaption>
+
+  <figcaption>表 1：StableDiffusion3 单机单卡 1024*1024 4step 峰值显存</figcaption>
 </figure>
 
 下面的代码片段解释了这一差异的原因：变量 a、b、c 是计算过程中的中间变量，由于没有及时释放，会推高 PyTorch 的峰值显存。而 DTorch 采用异步计算，构图的 Python 线程提前执行完 `func()` 并返回，C++ 执行引擎由此得知中间变量 a、b、c 不再被持有，从而可以及时释放其显存。
@@ -32,12 +33,12 @@ def func():
 
 <figure markdown>
   ![不同 shape 的 Tensor add 算子的耗时](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/tensor_add_performance.png)
-  <figcaption>不同 shape 的 Tensor add 算子的耗时（NVIDIA 4090）</figcaption>
+  <figcaption>图 1：不同 shape 的 Tensor add 算子的耗时（NVIDIA 4090）</figcaption>
 </figure>
 
 <figure markdown>
   ![不同 shape 的 Tensor SDPA 算子的耗时](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/sdpa_performance.png)
-  <figcaption>不同 shape 的 Tensor SDPA 算子的耗时（NVIDIA 4090）</figcaption>
+  <figcaption>图 2：不同 shape 的 Tensor SDPA 算子的耗时（NVIDIA 4090）</figcaption>
 </figure>
 
 ### 2.2 模型层面
@@ -49,7 +50,8 @@ def func():
   |-|-|-|-|
   |Python Client 执行时间|0.575s|0.206s<span style="color: #4caf50; font-weight: bold;">(-64.17%)</span>|单卡推理的 CPU 耗时|
   |单卡耗时(GPU)|1.683s|1.648s<span style="color: #4caf50; font-weight: bold;">(-2.08%)</span>|单卡推理的端到端耗时|
-  <figcaption>StableDiffusion3 单机单卡 1024*1024 4step 耗时（NVIDIA 3090）</figcaption>
+
+  <figcaption>表 2：StableDiffusion3 单机单卡 1024*1024 4step 耗时（NVIDIA 3090）</figcaption>
 </figure>
 
 **Nsight System Profile**
@@ -60,5 +62,5 @@ def func():
 
 <figure markdown>
   ![Nsight System Profile 结果](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/nsys_sd3_async_get_tensor.png)
-  <figcaption>StableDiffusion3 的 Nsight System Profile 结果</figcaption>
+  <figcaption>图 3：StableDiffusion3 的 Nsight System Profile 结果</figcaption>
 </figure>
