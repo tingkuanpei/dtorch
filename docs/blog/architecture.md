@@ -119,6 +119,8 @@ Single-Controller 以跨机网络带来的调度开销，换来了全局视角�
 
 三者组合的最终效果是：用户以单卡 PyTorch 的写法描述计算，不修改代码逻辑即可扩展到多卡分布式环境。框架在背后完成调度、切分与通讯，并将计算和通讯重叠、算子融合、显存复用等优化建立在提前获得的计算子图之上——简洁与高效由此兼得。
 
+DTorch 的代码和文档均在 [GitHub](https://github.com/tingkuanpei/dtorch) 开源，欢迎关注与参与。
+
 ## 延伸阅读
 
 - [关键概念](https://tingkuanpei.github.io/dtorch/developer_guide/key_concept/) — 三大核心设计详解

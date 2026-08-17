@@ -543,6 +543,8 @@ Single-Controller + Distributed Tensor 是一条颇具潜力的技术路线，�
 
 实测表明，在输出逐 bit 一致的前提下，DTorch 的显存峰值占用比 PyTorch 低 2.58%，单卡推理端到端时延低 2.08%，Python Client 执行时间低 64.17%。
 
+DTorch 的代码和文档均在 [GitHub](https://github.com/tingkuanpei/dtorch) 开源，欢迎关注与参与。
+
 ## 8 致谢
 
 DTorch 在设计和实现中参考了 [PyTorch](https://github.com/pytorch/pytorch)、[OneFlow](https://arxiv.org/abs/2110.15032)、[Pathways](https://arxiv.org/abs/2203.12533)、[Megatron-LM](https://github.com/NVIDIA/Megatron-LM)、[vLLM](https://github.com/vllm-project/vllm) 和 [veRL](https://arxiv.org/html/2409.19256v1) 等项目。
