@@ -18,7 +18,7 @@ Placement 的切分策略如下：
 以 shape=(4, 4) 分布在 2卡上的 Tensor 为例：
 
 <figure markdown>
-  ![DTensor 概念图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/dtensor.png)
+  ![DTensor 概念图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/dtensor_cn.png)
   <figcaption>图 1：DTensor 的 DeviceMesh 与 Placements 示意</figcaption>
 </figure>
 

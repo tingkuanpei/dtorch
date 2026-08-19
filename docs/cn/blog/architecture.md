@@ -26,7 +26,7 @@ DTorch 正是围绕这一洞察构建了一套简洁且高效的深度学习 API
 用户使用 DTorch API 时，只需在单线程 Python 代码中用 DTensor 描述计算（创建 Tensor、调用 Operator），框架便会自动完成分布式集群上的资源管理、任务分发与通讯等操作。DTorch 中有三类角色：Client、Controller 和 Worker，构成 Single-Client Single-Controller Multi-Worker 架构，如下图所示。
 
 <figure markdown>
-  ![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker.png)
+  ![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker_cn.png)
   <figcaption>图 1：Client、Controller 和 Worker 并发执行，并通过 Queue 异步通信</figcaption>
 </figure>
 

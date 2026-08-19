@@ -1,4 +1,4 @@
-# Python API Overview
+# Python API 概述
 
 DTorch 提供与 PyTorch 一致的 Python API，并原生支持分布式张量（DTensor）。用户无需修改代码的计算逻辑，只需增加 DeviceMesh 和 Placements 的定义，即可将单卡 PyTorch 程序无缝扩展到多卡分布式环境。
 

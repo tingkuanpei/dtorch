@@ -18,8 +18,8 @@
 def func():
     a = torch.rand(...)
     b = operator0(a)
-    c = operator0(b)
-    d = operator0(c)
+    c = operator1(b)
+    d = operator2(c)
     return d
 ```
 
@@ -61,6 +61,6 @@ def func():
 > 关于 PyTorch 为何难以支持"异步获取 Tensor 的值"，详见 [Python API 使用指南 — PyTorch 中无法支持 await Tensor](../../user_guide/python_api_overview.md#pytorch-中无法支持-await-tensor)。
 
 <figure markdown>
-  ![Nsight System Profile 结果](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/nsys_sd3_async_get_tensor.png)
+  ![Nsight System Profile 结果](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/nsys_sd3_async_get_tensor_cn.png)
   <figcaption>图 3：StableDiffusion3 的 Nsight System Profile 结果</figcaption>
 </figure>

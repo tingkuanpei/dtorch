@@ -11,7 +11,7 @@ Operator），框架自动完成分布式集群上的资源管理、任务分发
 Single-Client Single-Controller Multi-Worker 的异步分布式执行模型：
 
 <figure markdown>
-  ![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker.png)
+  ![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker_cn.png)
   <figcaption>图 1：Client、Controller 和 Worker 并发执行，并通过 Queue 异步通信</figcaption>
 </figure>
 

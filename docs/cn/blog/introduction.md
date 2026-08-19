@@ -286,7 +286,7 @@ DTensor(Distributed Tensor) 是描述“一个 Tensor 如何被切分并分布�
 DTensor 的示例如图 2 所示；DeviceMesh 与 Placements 的完整入门介绍见 [Distributed Tensor Overview](https://tingkuanpei.github.io/dtorch/cn/user_guide/distributed_tensor_overview/)。
 
 <figure markdown>
-  ![DTensor 概念图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/dtensor.png)
+  ![DTensor 概念图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/dtensor_cn.png)
   <figcaption>图 2：DTensor 的 DeviceMesh 与 Placements 示意</figcaption>
 </figure>
 
@@ -468,8 +468,8 @@ PyTorch 算子和 DTorch 算子调用的都是 LibTorch 后端，因此其运行
 def func():
     a = torch.rand(...)
     b = operator0(a)
-    c = operator0(b)
-    d = operator0(c)
+    c = operator1(b)
+    d = operator2(c)
     return d
 ```
 
@@ -509,7 +509,7 @@ def func():
 图 6 是 Nsight System Profile 的结果。由于 DTorch 提供了完整的异步计算组件（Client、Controller 和 Worker 异步执行 + 异步获取 Tensor 的值），因此可以 overlap 掉 CPU 的开销。这避免了：1. 获取模型输出 Tensor 的开销；2. 大量小算子导致的 CPU launch kernel 的开销（text_encoder 的 input shape 很小，因此 CPU 的耗时远大于 GPU 的耗时）。
 
 <figure markdown>
-  ![Nsight System Profile 结果](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/nsys_sd3_async_get_tensor.png)
+  ![Nsight System Profile 结果](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/nsys_sd3_async_get_tensor_cn.png)
   <figcaption>图 6：StableDiffusion3 单卡推理的 Nsight System Profile 结果</figcaption>
 </figure>
 

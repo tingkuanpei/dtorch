@@ -2,7 +2,7 @@
 # 部署为两套站点：本文件构建 docs/cn → /cn；英文站见 mkdocs.yml（docs/en → /en）。
 
 site_name: DTorch 文档
-site_description: 基于 Single-Controller 与 Distributed Tensor 的 PyTorch 分布式深度学习 API
+site_description: 易用的 PyTorch 分布式推理 API
 site_author: Pei Tingkuan
 site_url: https://tingkuanpei.github.io/dtorch/cn/
 docs_dir: docs/cn
@@ -85,17 +85,24 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/tingkuanpei/dtorch
+  alternate:
+    - name: 中文
+      link: https://tingkuanpei.github.io/dtorch/cn/
+      lang: zh
+    - name: English
+      link: https://tingkuanpei.github.io/dtorch/en/
+      lang: en
 
 nav:
   - DTorch: index.md
-  - Get Started: get_started/get_started.md
-  - User Guide:
-    - User Guide: user_guide/user_guide.md
+  - 快速开始: get_started/get_started.md
+  - 用户指南:
+    - 用户指南: user_guide/user_guide.md
     - Distributed Tensor: user_guide/distributed_tensor_overview.md
-    - Python API OverView: user_guide/python_api_overview.md
+    - Python API 概述: user_guide/python_api_overview.md
     - Module 并行: user_guide/module_parallel.md
     - Llama 并行示例: user_guide/llama_parallel.md
-  - Developer Guide:
+  - 开发者指南:
     - 总览:
       - 项目概述: developer_guide/project_overview.md
       - Single-Controller 与 Multi-Controller: developer_guide/single_and_multi_controller.md
@@ -111,8 +118,8 @@ nav:
         - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate_overview.md
     - 设计决策: developer_guide/design_decisions.md
     - 文档索引: developer_guide/document_index.md
-  - Performance: developer_guide/debug_alignment_optimization/performance.md
-  - Blog:
+  - 性能: developer_guide/debug_alignment_optimization/performance.md
+  - 博客:
     - DTorch 介绍: blog/introduction.md
     - DTorch 架构设计：简洁与高效何以兼得: blog/architecture.md
     - DTorch 的优势与机遇: blog/advantages_and_opportunities.md

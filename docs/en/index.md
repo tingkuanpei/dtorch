@@ -77,23 +77,23 @@ dist.destroy_process_group()
 - 🔥**Lower CPU overhead.** Benefiting from DTorch's asynchronous execution, the Python thread only constructs compute nodes — it never executes them directly. Combined with awaitable `TensorFuture`s, this keeps the interpreter light and minimizes GPU idle time caused by slow CPU-side kernel launches.
 - **Single-Controller.** One Python thread drives the entire cluster — no multi-process launch, no SPMD, no `ProcessGroup`.
 - **DTensor Native.** Every tensor in DTorch is a `DTensor`, and every operator works on it natively. No manual shape sharding, no manual `all_gather` across ranks — you just declare the tensor and print it directly.
-- **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring) and Pipeline Parallel — all expressible in the same code, and **freely composable**. See the [Llama parallel guide](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/) for a complete DP + TP + PP + CP example.
+- **Unified parallel strategies.** Data Parallel, Tensor Parallel, Context Parallel (Ulysses & Ring) and Pipeline Parallel — all expressible in the same code, and **freely composable**. See the [Llama parallel guide](user_guide/llama_parallel.md) for a complete DP + TP + PP + CP example.
 
 ---
 
 ## Documentation
 
-*The guides below are currently written in Chinese; English translations are on the way.*
+*The core guides are available in English; the remaining advanced topics are linked to the Chinese site from the [Document Index](developer_guide/document_index.md) until they are translated.*
 
 Not sure where to start?
 
-- 🚀 **New to DTorch?** Read [Get Started](https://tingkuanpei.github.io/dtorch/cn/get_started/get_started/) — build DTorch from source, then verify distributed inference of Llama and diffusion models (SD3 / FLUX).
-- 📖 **Want to write distributed programs?** Follow the [User Guide](https://tingkuanpei.github.io/dtorch/cn/user_guide/user_guide/): DTensor core concepts → [Python API](https://tingkuanpei.github.io/dtorch/cn/user_guide/python_api_overview/) → [Module Parallel](https://tingkuanpei.github.io/dtorch/cn/user_guide/module_parallel/) → the complete [Llama DP + TP + PP + CP example](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/).
-- 🏗️ **Want to understand the engine?** Start with the [Project Overview](https://tingkuanpei.github.io/dtorch/cn/developer_guide/project_overview/) and [Key Concepts](https://tingkuanpei.github.io/dtorch/cn/developer_guide/key_concept/), then read the [Design Decisions](https://tingkuanpei.github.io/dtorch/cn/developer_guide/design_decisions/) and the four-layer [Eager Graph Architecture](https://tingkuanpei.github.io/dtorch/cn/developer_guide/eager_graph_architecture/eager_graph_architecture/). The [Document Index](https://tingkuanpei.github.io/dtorch/cn/developer_guide/document_index/) lists all the remaining documents.
-- ⚡ **Performance** — see the [Performance Analysis and Optimization](https://tingkuanpei.github.io/dtorch/cn/developer_guide/debug_alignment_optimization/performance/) guide.
+- 🚀 **New to DTorch?** Read [Get Started](get_started/get_started.md) — build DTorch from source, then verify distributed inference of Llama and diffusion models (SD3 / FLUX).
+- 📖 **Want to write distributed programs?** Follow the [User Guide](user_guide/user_guide.md): DTensor core concepts → [Python API](user_guide/python_api_overview.md) → [Module Parallel](user_guide/module_parallel.md) → the complete [Llama DP + TP + PP + CP example](user_guide/llama_parallel.md).
+- 🏗️ **Want to understand the engine?** Start with the [Project Overview](developer_guide/project_overview.md) and [Key Concepts](developer_guide/key_concept.md), then read the [Design Decisions](developer_guide/design_decisions.md) and the four-layer [Eager Graph Architecture](developer_guide/eager_graph_architecture/eager_graph_architecture.md). The [Document Index](developer_guide/document_index.md) lists all the remaining documents.
+- ⚡ **Performance** — see the [Performance](developer_guide/debug_alignment_optimization/performance.md) guide.
 
 ---
 
 ## Call for Support
 
-The [Single-Controller + Distributed Tensor architecture](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/) that DTorch builds on is a [promising technical direction](https://tingkuanpei.github.io/dtorch/cn/blog/advantages_and_opportunities/). However, my personal resources alone are not enough to carry all of these ideas through. If you are interested in this direction, feel free to reach out at **peitingkuan@163.com**.
+The [Single-Controller + Distributed Tensor architecture](blog/architecture.md) that DTorch builds on is a [promising technical direction](blog/advantages_and_opportunities.md). However, my personal resources alone are not enough to carry all of these ideas through. If you are interested in this direction, feel free to reach out at **peitingkuan@163.com**.

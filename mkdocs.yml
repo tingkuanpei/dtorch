@@ -2,7 +2,7 @@
 # Deployed as two sites: this file builds docs/en → /en; mkdocs.zh-CN.yml builds docs/cn → /cn.
 
 site_name: DTorch Docs
-site_description: An easy-to-use distributed inference API for PyTorch based on Single-Controller and Distributed Tensor
+site_description: Easy-to-Use Distributed Inference API for PyTorch
 site_author: Pei Tingkuan
 site_url: https://tingkuanpei.github.io/dtorch/en/
 docs_dir: docs/en
@@ -82,6 +82,41 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/tingkuanpei/dtorch
+  alternate:
+    - name: English
+      link: https://tingkuanpei.github.io/dtorch/en/
+      lang: en
+    - name: 中文
+      link: https://tingkuanpei.github.io/dtorch/cn/
+      lang: zh
 
 nav:
   - DTorch: index.md
+  - Get Started: get_started/get_started.md
+  - User Guide:
+    - User Guide: user_guide/user_guide.md
+    - Distributed Tensor: user_guide/distributed_tensor_overview.md
+    - Python API Overview: user_guide/python_api_overview.md
+    - Module Parallel: user_guide/module_parallel.md
+    - Llama Parallel Example: user_guide/llama_parallel.md
+  - Developer Guide:
+    - Overview:
+      - Project Overview: developer_guide/project_overview.md
+      - Single-Controller and Multi-Controller: developer_guide/single_and_multi_controller.md
+      - Key Concepts: developer_guide/key_concept.md
+    - Core Architecture:
+      - Single-Controller Architecture: developer_guide/single_controller.md
+      - Distributed Tensor: developer_guide/distributed_tensor.md
+      - Eager Graph Architecture:
+        - Architecture Overview: developer_guide/eager_graph_architecture/eager_graph_architecture.md
+        - Layer 1 · Graph Representation: developer_guide/eager_graph_architecture/logical_graph_representation.md
+        - Layer 2 · Kernel Runtime: developer_guide/eager_graph_architecture/kernel_runtime.md
+        - Layer 3 · GraphExecutor: developer_guide/eager_graph_architecture/graph_executor.md
+        - Layer 4 · Collective Communication: developer_guide/communicate/tensor_communicate_overview.md
+    - Design Decisions: developer_guide/design_decisions.md
+    - Document Index: developer_guide/document_index.md
+  - Performance: developer_guide/debug_alignment_optimization/performance.md
+  - Blog:
+    - Introduction: blog/introduction.md
+    - Architecture Design: blog/architecture.md
+    - Advantages and Opportunities: blog/advantages_and_opportunities.md
