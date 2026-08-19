@@ -162,7 +162,7 @@ dist.destroy_process_group()
 - **Multi-Controller**（PyTorch 采用）：每张 GPU 各由一个 Controller 进程管理，进程既是控制者又是执行者，直接调度本机 GPU，与其他进程通过集合通信协调；所有进程执行同一份代码，即 SPMD 范式。用户在分布式集群的局部视角下编程。代表系统：PyTorch `torch.distributed`（DDP / FSDP）、Megatron-LM、DeepSpeed。
 - **Single-Controller**（DTorch 采用）：整个集群只有一个 Controller，统一管理全部 GPU 资源。用户在一个普通进程中、以分布式集群的全局视角描述计算，数据切分、任务分发与通讯协调均由框架自动完成。该范式最早在 TensorFlow v1 中被使用，并在 [Pathways](https://arxiv.org/abs/2203.12533) 中有详细论述。代表系统：TensorFlow v1、Pathways、DTorch。
 
-两者的架构对比如图 1 所示；概念的完整介绍见 [Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/developer_guide/single_and_multi_controller/)。
+两者的架构对比如图 1 所示；概念的完整介绍见 [Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_and_multi_controller/)。
 
 <figure markdown>
   ![Single-Controller 与 Multi-Controller 对比](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/single_controller_vs_multi_controller.png)
@@ -196,7 +196,7 @@ DTorch 选择 Single-Controller 最大的理由是易用性。Single-Controller 
 
 Single-Controller 的劣势有：1. 系统调度的开销较高；2. 接口的灵活性不如 Multi-Controller。
 
-调度开销方面：Multi-Controller 的 Controller 与 GPU 同机，调度仅需经过 PCIe；Single-Controller 调度远端 GPU 需经过跨机网络通信，因此开销更大。为缓解这一问题，DTorch 采用 Single-Client Single-Controller Multi-Worker 异步架构，各组件间异步执行，详见博客 [《DTorch 架构设计：简洁与高效何以兼得》](https://tingkuanpei.github.io/dtorch/blog/architecture/)。
+调度开销方面：Multi-Controller 的 Controller 与 GPU 同机，调度仅需经过 PCIe；Single-Controller 调度远端 GPU 需经过跨机网络通信，因此开销更大。为缓解这一问题，DTorch 采用 Single-Client Single-Controller Multi-Worker 异步架构，各组件间异步执行，详见博客 [《DTorch 架构设计：简洁与高效何以兼得》](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/)。
 
 由于 Multi-Controller 中每个进程上执行的代码可以完全不一样，因此可以支持 MPMD（Multi Program Multi Data）的范式，其灵活性极高。理论上，任何需要并行编程的代码均可使用 MPMD 的范式实现。目前大模型已经收敛至 Transformer 架构，MPMD 范式过高的灵活性并未带来收益，反而其易用性差的劣势正在凸显。
 
@@ -283,7 +283,7 @@ DTensor(Distributed Tensor) 是描述“一个 Tensor 如何被切分并分布�
     2. `Replicate()`：完整复制到所有设备；
     3. `Partial()`：各设备持有一部分结果，求和后才是完整值。
 
-DTensor 的示例如图 2 所示；DeviceMesh 与 Placements 的完整入门介绍见 [Distributed Tensor Overview](https://tingkuanpei.github.io/dtorch/user_guide/distributed_tensor_overview/)。
+DTensor 的示例如图 2 所示；DeviceMesh 与 Placements 的完整入门介绍见 [Distributed Tensor Overview](https://tingkuanpei.github.io/dtorch/cn/user_guide/distributed_tensor_overview/)。
 
 <figure markdown>
   ![DTensor 概念图](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/dtensor.png)
@@ -294,7 +294,7 @@ DTensor 的示例如图 2 所示；DeviceMesh 与 Placements 的完整入门介�
 
 DTorch 的 API 和 PyTorch 单机单卡 API 非常相似，熟悉 PyTorch 的用户可以无缝切换到 DTorch API。在 DTorch 中，用户通过单线程的 Python 代码以 Eager 模式描述计算流程。DTorch 通过 DTensor(Distributed Tensor) 实现分布式计算的支持，其原生支持 DTensor 的创建、计算和通信。
 
-Python API 的使用指南见 [Python API Overview](https://tingkuanpei.github.io/dtorch/user_guide/python_api_overview/)。
+Python API 的使用指南见 [Python API Overview](https://tingkuanpei.github.io/dtorch/cn/user_guide/python_api_overview/)。
 
 ### 4.1 DTensor 的创建
 
@@ -423,20 +423,20 @@ if __name__ == "__main__":
 
 ### 4.3 对并行算法的支持与示例
 
-DTorch 中通过 DTensor 的 DeviceMesh 和 Placements 描述 Data Parallel、Tensor Parallel、Context Parallel 和 Pipeline Parallel 等并行算法。详情可参考  [Module 并行](https://tingkuanpei.github.io/dtorch/user_guide/module_parallel/)：
+DTorch 中通过 DTensor 的 DeviceMesh 和 Placements 描述 Data Parallel、Tensor Parallel、Context Parallel 和 Pipeline Parallel 等并行算法。详情可参考  [Module 并行](https://tingkuanpei.github.io/dtorch/cn/user_guide/module_parallel/)：
 
 1. Data Parallel 是 Tensor 在 batch 维度的切分，即将 Placements 设置为 Shard(0)。
 2. Tensor Parallel 是将权重 Tensor 和激活 Tensor 在对应的维度 Shard（如 ColumnParallelLinear 按输出列切分、RowParallelLinear 按输入行切分），框架自动插入所需的通信。
 3. Context Parallel 是将 Q/K/V 在序列维度切分。DeviceMesh 含 ulysess_cp / ring_cp 维度时，dtorch.nn.functional.scaled_dot_product_attention 会自动启用对应的 CP 实现，在算子内部完成通信，并产生对应的输出。
 4. Pipeline Parallel 是不同 PP Stage 的 Tensor 使用不同的 DeviceMesh（通过 device_mesh.unbind("pp") 展开各 stage 的子 mesh），并通过 tensor.redistribute 在不同 Stage 之间传输激活。
 
-综上，DTorch 中实现不同的并行算法时，分布式代码和单机单卡的代码一致，仅仅需要使用对应的 DeviceMesh 和 Placements 即可。以 Transformer 模型（Llama）为例的 DP、TP、PP、CP 任意组合完整实现见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/user_guide/llama_parallel/) 和 [`python/dtorch/test/modules/llama.py`](https://github.com/tingkuanpei/dtorch/blob/main/python/dtorch/test/modules/llama.py)。
+综上，DTorch 中实现不同的并行算法时，分布式代码和单机单卡的代码一致，仅仅需要使用对应的 DeviceMesh 和 Placements 即可。以 Transformer 模型（Llama）为例的 DP、TP、PP、CP 任意组合完整实现见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/) 和 [`python/dtorch/test/modules/llama.py`](https://github.com/tingkuanpei/dtorch/blob/main/python/dtorch/test/modules/llama.py)。
 
 ## 5 精度与性能对比
 
 目前 DTorch 已经完成了原型开发：基于分布式集群的全局视角构建并实现了一套分布式 API，并基于此 API 实现了 Diffusion 模型的单机多卡分布式推理框架。
 
-DTorch 基于 Single-Controller + DTensor 方案，其调度远端 GPU 需经过跨机网络通信，因此开销更大。为缓解这一问题，DTorch 采用 Single-Client Single-Controller Multi-Worker 异步架构，各组件间异步执行，详见博客 [《DTorch 架构设计：简洁与高效何以兼得》](https://tingkuanpei.github.io/dtorch/blog/architecture/)。本章节仅介绍 DTorch 和 PyTorch 之间的性能测试数据。
+DTorch 基于 Single-Controller + DTensor 方案，其调度远端 GPU 需经过跨机网络通信，因此开销更大。为缓解这一问题，DTorch 采用 Single-Client Single-Controller Multi-Worker 异步架构，各组件间异步执行，详见博客 [《DTorch 架构设计：简洁与高效何以兼得》](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/)。本章节仅介绍 DTorch 和 PyTorch 之间的性能测试数据。
 
 ### 5.1 精度
 
@@ -529,11 +529,11 @@ def func():
 
 2. [CUDA 流队列中可容纳的未执行内核（kernel）数量存在上限](https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/environment-variables.html#cuda-scale-launch-queues)，一旦达到该上限，线程同样会进入阻塞等待状态，直到队列中有空闲槽位为止。
 
-而 DTorch 中通过协程 [`await TensorFuture`](https://tingkuanpei.github.io/dtorch/user_guide/python_api_overview/#-await-tensorfuture) 的方式支持“异步获取 Tensor 的值”，同时由于 DTorch 采用的 Client、Controller 和 Worker 异步执行的特性，不会遇到上述的两个障碍。
+而 DTorch 中通过协程 [`await TensorFuture`](https://tingkuanpei.github.io/dtorch/cn/user_guide/python_api_overview/#-await-tensorfuture) 的方式支持“异步获取 Tensor 的值”，同时由于 DTorch 采用的 Client、Controller 和 Worker 异步执行的特性，不会遇到上述的两个障碍。
 
 ## 6 展望
 
-Single-Controller + Distributed Tensor 是一条颇具潜力的技术路线，有望重塑当前基于 PyTorch 的分布式训练和推理生态。关于 DTorch 的差异化优势与行业机遇的进一步讨论，参见博客 [《DTorch 的优势与机遇》](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)。
+Single-Controller + Distributed Tensor 是一条颇具潜力的技术路线，有望重塑当前基于 PyTorch 的分布式训练和推理生态。关于 DTorch 的差异化优势与行业机遇的进一步讨论，参见博客 [《DTorch 的优势与机遇》](https://tingkuanpei.github.io/dtorch/cn/blog/advantages_and_opportunities/)。
 
 ## 7 总结
 
@@ -547,7 +547,7 @@ DTorch 的代码和文档均在 [GitHub](https://github.com/tingkuanpei/dtorch) 
 
 ## 8 寻求支持
 
-DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **peitingkuan@163.com**。
+DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/cn/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **peitingkuan@163.com**。
 
 
 ## 9 致谢

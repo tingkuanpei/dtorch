@@ -4,8 +4,8 @@ DTorch 是一套基于 Single-Controller 和 Distributed Tensor 架构的分布�
 
 前置阅读：
 
-- [Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/developer_guide/single_and_multi_controller/)——两种控制范式的概念介绍
-- [Distributed Tensor Overview](https://tingkuanpei.github.io/dtorch/user_guide/distributed_tensor_overview/)（Distributed Tensor 概述）
+- [Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_and_multi_controller/)——两种控制范式的概念介绍
+- [Distributed Tensor Overview](https://tingkuanpei.github.io/dtorch/cn/user_guide/distributed_tensor_overview/)（Distributed Tensor 概述）
 
 ## 1. 问题：Single-Controller 的调度开销
 
@@ -60,9 +60,9 @@ DTorch 通过 `tensor.redistribute()` 改变 Tensor 的 DeviceMesh 和 Placement
 
 ### 3.3 自由组合的并行方案
 
-这些并行方式的实现方式不尽相同：Data Parallel 和 Pipeline Parallel 只需配置正确的 DeviceMesh 和 Placements；Tensor Parallel 提供了 `ColumnParallelLinear`、`RowParallelLinear` 和 `EmbeddingWithReplicateOutput` 等并行 Module，方便用户调用；Context Parallel 则通过 DeviceMesh 中的 `ulysess_cp` / `ring_cp` 命名维度启用，`scaled_dot_product_attention` 检测到相应维度后，会自动切换到 Ulysses 或 Ring 对应的 CP 实现。各并行方式在 Module 层的具体用法见 [Module 并行](https://tingkuanpei.github.io/dtorch/user_guide/module_parallel/)。
+这些并行方式的实现方式不尽相同：Data Parallel 和 Pipeline Parallel 只需配置正确的 DeviceMesh 和 Placements；Tensor Parallel 提供了 `ColumnParallelLinear`、`RowParallelLinear` 和 `EmbeddingWithReplicateOutput` 等并行 Module，方便用户调用；Context Parallel 则通过 DeviceMesh 中的 `ulysess_cp` / `ring_cp` 命名维度启用，`scaled_dot_product_attention` 检测到相应维度后，会自动切换到 Ulysses 或 Ring 对应的 CP 实现。各并行方式在 Module 层的具体用法见 [Module 并行](https://tingkuanpei.github.io/dtorch/cn/user_guide/module_parallel/)。
 
-PyTorch 受限于对既有 Module 代码的兼容，只能通过 [parallelize_module](https://docs.pytorch.org/docs/stable/distributed.tensor.parallel.html#torch.distributed.tensor.parallel.parallelize_module) 给 Module 增加 hook 的方式实现并行；DTorch 则直接使用这些并行接口，简单直观，不需要用户理解复杂的 hook 调用逻辑。DTorch 的所有并行方式都可以自由组合，同一份代码既可以单卡运行，也可以组合开启不同的并行方式运行；Llama 模型上 DP + TP + PP + CP 的完整实现见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/user_guide/llama_parallel/)。
+PyTorch 受限于对既有 Module 代码的兼容，只能通过 [parallelize_module](https://docs.pytorch.org/docs/stable/distributed.tensor.parallel.html#torch.distributed.tensor.parallel.parallelize_module) 给 Module 增加 hook 的方式实现并行；DTorch 则直接使用这些并行接口，简单直观，不需要用户理解复杂的 hook 调用逻辑。DTorch 的所有并行方式都可以自由组合，同一份代码既可以单卡运行，也可以组合开启不同的并行方式运行；Llama 模型上 DP + TP + PP + CP 的完整实现见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/)。
 
 受益于 Single-Controller 和 DTensor 的架构，开启 Tensor Parallel、Pipeline Parallel 和 Expert Parallel 后，加载模型 state_dict 时无需显式切分并读取对应的模型参数（类似 Megatron-LM 中 TP 和 PP 对 Parameter 的切分），所有切分操作都由框架根据 Tensor 的 DeviceMesh 和 Placements 隐式完成。
 
@@ -130,7 +130,7 @@ DTorch 的代码和文档均在 [GitHub](https://github.com/tingkuanpei/dtorch) 
 
 ## 延伸阅读
 
-- [关键概念](https://tingkuanpei.github.io/dtorch/developer_guide/key_concept/) — 三大核心设计详解
-- [设计决策](https://tingkuanpei.github.io/dtorch/developer_guide/design_decisions/) — 关键设计决策的动机与方案
-- [Single-Controller 架构](https://tingkuanpei.github.io/dtorch/developer_guide/single_controller/) / [Distributed Tensor](https://tingkuanpei.github.io/dtorch/developer_guide/distributed_tensor/) / [Eager Graph 架构](https://tingkuanpei.github.io/dtorch/developer_guide/eager_graph_architecture/eager_graph_architecture/)
-- [User Guide](https://tingkuanpei.github.io/dtorch/user_guide/user_guide/) — 用 Python API 编写分布式程序
+- [关键概念](https://tingkuanpei.github.io/dtorch/cn/developer_guide/key_concept/) — 三大核心设计详解
+- [设计决策](https://tingkuanpei.github.io/dtorch/cn/developer_guide/design_decisions/) — 关键设计决策的动机与方案
+- [Single-Controller 架构](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_controller/) / [Distributed Tensor](https://tingkuanpei.github.io/dtorch/cn/developer_guide/distributed_tensor/) / [Eager Graph 架构](https://tingkuanpei.github.io/dtorch/cn/developer_guide/eager_graph_architecture/eager_graph_architecture/)
+- [User Guide](https://tingkuanpei.github.io/dtorch/cn/user_guide/user_guide/) — 用 Python API 编写分布式程序

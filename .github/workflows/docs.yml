@@ -1,5 +1,7 @@
-# 构建 MkDocs 站点并发布到 GitHub Pages
-# 仓库设置：Settings → Pages → Build and deployment → Source 必须选择 "GitHub Actions"
+# Build MkDocs sites and publish to GitHub Pages
+# Two sites: mkdocs.zh-CN.yml builds docs/cn → /cn, mkdocs.yml builds docs/en → /en;
+# the root path hosts docs/index.html (language redirect page), all three merged into one Pages artifact.
+# Repo settings: Settings → Pages → Build and deployment → Source must be set to "GitHub Actions"
 name: Deploy Docs
 
 on:
@@ -7,7 +9,7 @@ on:
     branches: [main]
     paths:
       - docs/**
-      - mkdocs.yml
+      - mkdocs*.yml
       - .github/workflows/docs.yml
   workflow_dispatch:
 
@@ -16,7 +18,7 @@ permissions:
   pages: write
   id-token: write
 
-# 同一时刻只允许一份部署，新推送会取消正在进行的旧部署
+# Only one deployment at a time; a new push cancels the in-progress one
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -31,12 +33,18 @@ jobs:
         with:
           python-version: "3.12"
 
-      # 仅安装文档依赖（避免触发 C++/CUDA 全量构建）
+      # Install doc dependencies only (avoid triggering the full C++/CUDA build)
       - name: Install MkDocs
         run: pip install mkdocs==1.6.1 mkdocs-material==9.5.49
 
-      - name: Build site
-        run: mkdocs build --strict
+      - name: Build sites (cn + en)
+        run: |
+          mkdocs build --strict -f mkdocs.zh-CN.yml -d build/cn
+          mkdocs build --strict -f mkdocs.yml -d build/en
+          mkdir -p site
+          cp -r build/cn site/cn
+          cp -r build/en site/en
+          cp docs/index.html site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

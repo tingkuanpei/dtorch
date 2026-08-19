@@ -180,7 +180,7 @@ virtual PlacementSignature GetPlacementSignature() const;
 virtual void Compute(const TorchTensorOptArray& inputs, TorchTensorArray& outputs) const;
 ```
 
-绝大部分算子均需重写此函数，少部分算子因为需要使用 ThreadGroup 或指定 cuda stream，需自定义 Kernel。可参考 `docs/how_to_add_operator.md`
+绝大部分算子均需重写此函数，少部分算子因为需要使用 ThreadGroup 或指定 cuda stream，需自定义 Kernel。可参考 `docs/cn/developer_guide/operator/how_to_add_operator.md`
 
 ```cpp
 // ActivationOp: 调用 LibTorch 的 activation 函数

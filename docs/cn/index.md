@@ -77,7 +77,7 @@ dist.destroy_process_group()
 - 🔥**更低的 CPU 开销。** 得益于 DTorch 的异步执行，Python 线程只构建计算节点，从不直接执行它们。再配合可等待的 `TensorFuture`，解释器保持轻量，最大限度减少 CPU 侧 kernel 启动过慢造成的 GPU 空闲。
 - **Single-Controller。** 一个 Python 线程驱动整个集群 —— 无需多进程启动、无需 SPMD、无需 `ProcessGroup`。
 - **原生 DTensor。** DTorch 中的每个张量都是 `DTensor`，每个算子都原生作用于它。无需手动切分形状，无需跨 rank 手动 `all_gather` —— 声明张量后直接打印即可。
-- **统一的并行策略。** Data Parallel、Tensor Parallel、Context Parallel（Ulysses 与 Ring）以及 Pipeline Parallel —— 都能用同一套代码表达，并且**可自由组合**。完整的 DP + TP + PP + CP 示例见 [Llama 并行指南](https://tingkuanpei.github.io/dtorch/user_guide/llama_parallel/)。
+- **统一的并行策略。** Data Parallel、Tensor Parallel、Context Parallel（Ulysses 与 Ring）以及 Pipeline Parallel —— 都能用同一套代码表达，并且**可自由组合**。完整的 DP + TP + PP + CP 示例见 [Llama 并行指南](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/)。
 
 ---
 
@@ -94,4 +94,4 @@ dist.destroy_process_group()
 
 ## 寻求支持
 
-DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **peitingkuan@163.com**。
+DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/cn/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **peitingkuan@163.com**。

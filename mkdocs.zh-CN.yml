@@ -1,0 +1,118 @@
+# DTorch 文档站点配置（MkDocs + Material）—— 中文站
+# 部署为两套站点：本文件构建 docs/cn → /cn；英文站见 mkdocs.yml（docs/en → /en）。
+
+site_name: DTorch 文档
+site_description: 基于 Single-Controller 与 Distributed Tensor 的 PyTorch 分布式深度学习 API
+site_author: Pei Tingkuan
+site_url: https://tingkuanpei.github.io/dtorch/cn/
+docs_dir: docs/cn
+
+# 仓库（GitHub）
+repo_url: https://github.com/tingkuanpei/dtorch
+repo_name: tingkuanpei/dtorch
+edit_uri: edit/main/docs/cn/
+
+theme:
+  name: material
+  language: zh
+  icon:
+    logo: material/function-variant
+  features:
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.expand
+    - navigation.path
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换至暗色模式
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换至亮色模式
+  font:
+    text: Noto Sans SC
+    code: JetBrains Mono
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 4
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search:
+      lang:
+        - zh
+        - en
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tingkuanpei/dtorch
+
+nav:
+  - DTorch: index.md
+  - Get Started: get_started/get_started.md
+  - User Guide:
+    - User Guide: user_guide/user_guide.md
+    - Distributed Tensor: user_guide/distributed_tensor_overview.md
+    - Python API OverView: user_guide/python_api_overview.md
+    - Module 并行: user_guide/module_parallel.md
+    - Llama 并行示例: user_guide/llama_parallel.md
+  - Developer Guide:
+    - 总览:
+      - 项目概述: developer_guide/project_overview.md
+      - Single-Controller 与 Multi-Controller: developer_guide/single_and_multi_controller.md
+      - 关键概念: developer_guide/key_concept.md
+    - 核心架构:
+      - Single-Controller 架构: developer_guide/single_controller.md
+      - Distributed Tensor: developer_guide/distributed_tensor.md
+      - Eager Graph 架构:
+        - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
+        - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md
+        - Layer 2 · Kernel 运行时: developer_guide/eager_graph_architecture/kernel_runtime.md
+        - Layer 3 · GraphExecutor: developer_guide/eager_graph_architecture/graph_executor.md
+        - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate_overview.md
+    - 设计决策: developer_guide/design_decisions.md
+    - 文档索引: developer_guide/document_index.md
+  - Performance: developer_guide/debug_alignment_optimization/performance.md
+  - Blog:
+    - DTorch 介绍: blog/introduction.md
+    - DTorch 架构设计：简洁与高效何以兼得: blog/architecture.md
+    - DTorch 的优势与机遇: blog/advantages_and_opportunities.md

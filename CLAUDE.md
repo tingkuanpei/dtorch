@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Develop
 
-@docs/get_started/how_to_build.md
+@docs/cn/get_started/how_to_build.md
 
 ## Testing
 
-@docs/get_started/test.md
+@docs/cn/get_started/test.md
 
 ## Code Formatting
 ```bash
@@ -19,6 +19,6 @@ Python: Black with `--line-length=120`.
 
 ## Developer Guide
 
-@docs/developer_guide/project_overview.md
+@docs/cn/developer_guide/project_overview.md
 
-@docs/developer_guide/document_index.md
+@docs/cn/developer_guide/document_index.md

@@ -2,7 +2,7 @@
 
 DTorch 是基于 Single-Controller 和 DTensor 构建的 PyTorch 分布式 API
 
-前两篇博客分别介绍了 [DTorch 的整体情况](https://tingkuanpei.github.io/dtorch/blog/introduction/)与[架构设计](https://tingkuanpei.github.io/dtorch/blog/architecture/)。本文在此基础上，系统讨论 DTorch 相对于现有分布式框架的优势与劣势，以及其面临的行业机会与展望。
+前两篇博客分别介绍了 [DTorch 的整体情况](https://tingkuanpei.github.io/dtorch/cn/blog/introduction/)与[架构设计](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/)。本文在此基础上，系统讨论 DTorch 相对于现有分布式框架的优势与劣势，以及其面临的行业机会与展望。
 
 ## 1 DTensor 的优势
 
@@ -27,7 +27,7 @@ DTensor 把分布信息记录在 Tensor 自身：**DeviceMesh** 描述"分布在
 
 ## 2 Single-Controller 的优势
 
-**有了 DTensor，就不再需要 Multi-Controller + SPMD。** Multi-Controller + SPMD 并非一个主动选择的理想设计，而是 DTensor 缺位时期的产物：既然每个进程只能看到局部数据，那就让每个进程各自管理自己，用 rank 和集合通信相互协调。当 DTensor 把全局视角的数据描述带回来之后，用户程序天然就是"全局的"，此时更自然的做法是让唯一的 Controller 直接消费这份全局信息——数据切分、任务分发、通讯协调、资源管理全部由框架完成，这正是 Single-Controller（正如[设计决策](https://tingkuanpei.github.io/dtorch/developer_guide/design_decisions/)中所说：Multi-Controller 方案以普通 Tensor 为设计前提，切换到 DTensor 后，Single-Controller 的易用性更好）。
+**有了 DTensor，就不再需要 Multi-Controller + SPMD。** Multi-Controller + SPMD 并非一个主动选择的理想设计，而是 DTensor 缺位时期的产物：既然每个进程只能看到局部数据，那就让每个进程各自管理自己，用 rank 和集合通信相互协调。当 DTensor 把全局视角的数据描述带回来之后，用户程序天然就是"全局的"，此时更自然的做法是让唯一的 Controller 直接消费这份全局信息——数据切分、任务分发、通讯协调、资源管理全部由框架完成，这正是 Single-Controller（正如[设计决策](https://tingkuanpei.github.io/dtorch/cn/developer_guide/design_decisions/)中所说：Multi-Controller 方案以普通 Tensor 为设计前提，切换到 DTensor 后，Single-Controller 的易用性更好）。
 
 落到使用体验上，Single-Controller 把整个分布式集群抽象成**一个线程**：用户只接触一个普通的 Python 线程——没有 torchrun、没有多进程、没有 rank，以全局视角描述计算即可。Multi-Controller 则把多进程模型直接暴露给用户：进程的启动与生命周期、每个进程各自的状态、以 rank 区分的执行路径，都需要用户以进程为单位理解和管理。这是 Single-Controller 易用性最直观的来源。
 
@@ -102,8 +102,8 @@ for batch in data:
 
 DTorch 中，单机与分布式是**同一份代码在不同 DeviceMesh 上的执行**：
 
-- DeviceMesh 只有一个设备时，DTorch 程序就是普通单卡程序，性能与 PyTorch 基本一致（SD3 单卡推理端到端耗时 -2.08%，见[介绍博客](https://tingkuanpei.github.io/dtorch/blog/introduction/)）；
-- 同一份 Llama 实现支持 DP、TP、PP、CP 的任意组合，仅通过 DeviceMesh 与 Placements 配置切换（见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/user_guide/llama_parallel/)）；
+- DeviceMesh 只有一个设备时，DTorch 程序就是普通单卡程序，性能与 PyTorch 基本一致（SD3 单卡推理端到端耗时 -2.08%，见[介绍博客](https://tingkuanpei.github.io/dtorch/cn/blog/introduction/)）；
+- 同一份 Llama 实现支持 DP、TP、PP、CP 的任意组合，仅通过 DeviceMesh 与 Placements 配置切换（见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/)）；
 - 从单机多卡扩展到多机，也只是 DeviceMesh 的不同配置；
 - 结合第 2 节的单卡模拟分布式能力，可以在一块 GPU 上开发、调试任意并行组合的分布式程序（如模拟 16 个虚拟 GPU 跑 DP × TP × PP × CP），确认无误后再部署到真实集群。
 
@@ -186,7 +186,7 @@ Worker 支持动态增删（见第 2 节"运行时动态增删计算节点"）�
 当前，DTorch 已跑通单机多卡下扩散模型分布式推理的完整链路，多机集群的通讯、调度相关的设施也接近完成：
 
 - **DTensor 与算子体系**：DeviceMesh、Placements（Shard / Replicate / Partial）与输出自动推导已就绪，权重自动切分、取值自动聚合、不均匀切分对用户透明；
-- **并行策略**：DP、TP、PP、Ulysses / Ring CP 已落地，同一份 Llama 实现支持任意组合（见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/user_guide/llama_parallel/)）；
+- **并行策略**：DP、TP、PP、Ulysses / Ring CP 已落地，同一份 Llama 实现支持任意组合（见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/)）；
 - **应用与优化**：SD3 / FLUX（diffusers 0.34.0）分布式推理已验证，Sage Attention 量化、First Block Cache、算子融合经 ExecuteConfig 开启，单卡端到端性能与 PyTorch 基本一致（SD3 耗时 -2.08%）；
 - **系统与质量**：单机多线程 / 集群多进程（ZMQ + gRPC 心跳）两种执行模式，单卡模拟分布式与 `TensorFuture` 异步取值；三层测试体系以 PyTorch 为基准，输出可做到逐 bit 一致。
 
@@ -226,7 +226,7 @@ DTorch 的代码和文档均在 [GitHub](https://github.com/tingkuanpei/dtorch) 
 
 ## 延伸阅读
 
-- [DTorch 介绍](https://tingkuanpei.github.io/dtorch/blog/introduction/) — DTorch 与 PyTorch 的全面对比、API 简介、精度与性能数据
-- [DTorch 架构设计：简洁与高效何以兼得](https://tingkuanpei.github.io/dtorch/blog/architecture/) — 三大核心设计详解
-- [Single-Controller 架构](https://tingkuanpei.github.io/dtorch/developer_guide/single_controller/) / [Distributed Tensor](https://tingkuanpei.github.io/dtorch/developer_guide/distributed_tensor/) — 开发者视角的机制详解
-- [设计决策](https://tingkuanpei.github.io/dtorch/developer_guide/design_decisions/) — 为何选择 DTensor + Single-Controller、LibTorch 后端
+- [DTorch 介绍](https://tingkuanpei.github.io/dtorch/cn/blog/introduction/) — DTorch 与 PyTorch 的全面对比、API 简介、精度与性能数据
+- [DTorch 架构设计：简洁与高效何以兼得](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/) — 三大核心设计详解
+- [Single-Controller 架构](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_controller/) / [Distributed Tensor](https://tingkuanpei.github.io/dtorch/cn/developer_guide/distributed_tensor/) — 开发者视角的机制详解
+- [设计决策](https://tingkuanpei.github.io/dtorch/cn/developer_guide/design_decisions/) — 为何选择 DTensor + Single-Controller、LibTorch 后端

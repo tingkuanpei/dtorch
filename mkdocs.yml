@@ -1,19 +1,20 @@
-# DTorch 文档站点配置（MkDocs + Material）
-# 参考 vLLM 方案：Markdown 源置于 docs/，mkdocs.yml 置于仓库根。
+# DTorch documentation site config (MkDocs + Material) — English site (default config)
+# Deployed as two sites: this file builds docs/en → /en; mkdocs.zh-CN.yml builds docs/cn → /cn.
 
-site_name: DTorch 文档
-site_description: 基于 Single-Controller 与 Distributed Tensor 的 PyTorch 分布式深度学习 API
+site_name: DTorch Docs
+site_description: An easy-to-use distributed inference API for PyTorch based on Single-Controller and Distributed Tensor
 site_author: Pei Tingkuan
-docs_dir: docs
+site_url: https://tingkuanpei.github.io/dtorch/en/
+docs_dir: docs/en
 
-# 仓库（GitHub）
+# Repository (GitHub)
 repo_url: https://github.com/tingkuanpei/dtorch
 repo_name: tingkuanpei/dtorch
-edit_uri: edit/main/docs/
+edit_uri: edit/main/docs/en/
 
 theme:
   name: material
-  language: zh
+  language: en
   icon:
     logo: material/function-variant
   features:
@@ -30,8 +31,6 @@ theme:
     - navigation.top
     - search.suggest
     - search.highlight
-    - content.code.copy
-    - content.code.annotate
     - toc.follow
   palette:
     - scheme: default
@@ -39,13 +38,13 @@ theme:
       accent: indigo
       toggle:
         icon: material/brightness-7
-        name: 切换至暗色模式
+        name: Switch to dark mode
     - scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-4
-        name: 切换至亮色模式
+        name: Switch to light mode
   font:
     text: Noto Sans SC
     code: JetBrains Mono
@@ -77,7 +76,6 @@ markdown_extensions:
 plugins:
   - search:
       lang:
-        - zh
         - en
 
 extra:
@@ -87,31 +85,3 @@ extra:
 
 nav:
   - DTorch: index.md
-  - Get Started: get_started/get_started.md
-  - User Guide:
-    - User Guide: user_guide/user_guide.md
-    - Distributed Tensor: user_guide/distributed_tensor_overview.md
-    - Python API OverView: user_guide/python_api_overview.md
-    - Module 并行: user_guide/module_parallel.md
-    - Llama 并行示例: user_guide/llama_parallel.md
-  - Developer Guide:
-    - 总览:
-      - 项目概述: developer_guide/project_overview.md
-      - Single-Controller 与 Multi-Controller: developer_guide/single_and_multi_controller.md
-      - 关键概念: developer_guide/key_concept.md
-    - 核心架构:
-      - Single-Controller 架构: developer_guide/single_controller.md
-      - Distributed Tensor: developer_guide/distributed_tensor.md
-      - Eager Graph 架构:
-        - 架构总览: developer_guide/eager_graph_architecture/eager_graph_architecture.md
-        - Layer 1 · 计算图表示: developer_guide/eager_graph_architecture/logical_graph_representation.md
-        - Layer 2 · Kernel 运行时: developer_guide/eager_graph_architecture/kernel_runtime.md
-        - Layer 3 · GraphExecutor: developer_guide/eager_graph_architecture/graph_executor.md
-        - Layer 4 · 集合通讯组件: developer_guide/communicate/tensor_communicate_overview.md
-    - 设计决策: developer_guide/design_decisions.md
-    - 文档索引: developer_guide/document_index.md
-  - Performance: developer_guide/debug_alignment_optimization/performance.md
-  - Blog:
-    - DTorch 介绍: blog/introduction.md
-    - DTorch 架构设计：简洁与高效何以兼得: blog/architecture.md
-    - DTorch 的优势与机遇: blog/advantages_and_opportunities.md
