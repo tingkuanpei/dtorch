@@ -7,7 +7,7 @@
 # Build both the cn and en MkDocs sites and merge them into site/ (matching the GitHub Pages deploy artifact):
 #   mkdocs.zh-CN.yml builds docs/cn → site/cn
 #   mkdocs.yml       builds docs/en → site/en
-#   docs/index.html (language redirect page) → site/index.html
+#   docs/site/index.html (language redirect page) → site/index.html
 #
 # Usage:
 #   script/build_docs.sh            # after building, preview the merged site at http://localhost:8000
@@ -18,17 +18,13 @@ DTORCH_ROOT="$(cd "$(dirname "$0")"/..;pwd -P)"
 cd "${DTORCH_ROOT}"
 
 SITE_DIR="${DTORCH_ROOT}/site"
-BUILD_DIR="${DTORCH_ROOT}/build"
 
-rm -rf "${SITE_DIR}" "${BUILD_DIR}"
+rm -rf "${SITE_DIR}"
 
-mkdocs build --strict -f mkdocs.zh-CN.yml -d build/cn
-mkdocs build --strict -f mkdocs.yml -d build/en
+mkdocs build --strict -f mkdocs.zh-CN.yml -d site/cn
+mkdocs build --strict -f mkdocs.yml -d site/en
 
-mkdir -p "${SITE_DIR}"
-cp -r build/cn site/cn
-cp -r build/en site/en
-cp docs/index.html site/index.html
+cp docs/site/index.html site/index.html
 
 echo "Docs built to ${SITE_DIR}: index.html (root) + cn/ + en/"
 

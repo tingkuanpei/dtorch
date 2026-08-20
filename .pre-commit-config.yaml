@@ -49,3 +49,9 @@ repos:
   rev: v18.1.8
   hooks:
   - id: clang-format
+    # The hook defaults to c++, c, c#, cuda, java, javascript, json,
+    # objective-c, proto, textproto and metal; restrict it to the languages
+    # this repository actually formats with the C++ style config, so that
+    # files like docs/site/assets/js/lang_switch.js are not rewritten with
+    # C++ rules.
+    types_or: [c++, c, cuda, proto]

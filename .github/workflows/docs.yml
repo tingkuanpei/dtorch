@@ -44,7 +44,7 @@ jobs:
           mkdir -p site
           cp -r build/cn site/cn
           cp -r build/en site/en
-          cp docs/index.html site/index.html
+          cp docs/site/index.html site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

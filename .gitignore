@@ -30,3 +30,7 @@ save_dot/*
 *.jpg
 *.png
 *.nsys-rep
+
+# Python
+__pycache__/
+*.pyc

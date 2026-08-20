@@ -81,6 +81,12 @@ plugins:
         - zh
         - en
 
+hooks:
+  - docs/site/hooks.py
+
+extra_javascript:
+  - assets/js/lang_switch.js
+
 extra:
   social:
     - icon: fontawesome/brands/github
@@ -120,6 +126,7 @@ nav:
     - 文档索引: developer_guide/document_index.md
   - 性能: developer_guide/debug_alignment_optimization/performance.md
   - 博客:
-    - DTorch 介绍: blog/introduction.md
-    - DTorch 架构设计：简洁与高效何以兼得: blog/architecture.md
-    - DTorch 的优势与机遇: blog/advantages_and_opportunities.md
+    - 介绍: blog/introduction.md
+    - 架构设计: blog/architecture.md
+    - 优势与机遇: blog/advantages_and_opportunities.md
+    - 重构分布式生态: blog/refactor_pytorch_ecosystem.md

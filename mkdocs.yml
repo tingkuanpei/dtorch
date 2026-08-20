@@ -78,6 +78,12 @@ plugins:
       lang:
         - en
 
+hooks:
+  - docs/site/hooks.py
+
+extra_javascript:
+  - assets/js/lang_switch.js
+
 extra:
   social:
     - icon: fontawesome/brands/github
@@ -120,3 +126,4 @@ nav:
     - Introduction: blog/introduction.md
     - Architecture Design: blog/architecture.md
     - Advantages and Opportunities: blog/advantages_and_opportunities.md
+    - Refactoring the Distributed Ecosystem: blog/refactor_pytorch_ecosystem.md
