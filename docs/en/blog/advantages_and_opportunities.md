@@ -158,7 +158,7 @@ DTorch's architecture makes a finer-grained billing model possible. The Client, 
 
 Workers support dynamic addition and removal (see "Runtime dynamic addition and removal of compute nodes" in Section 2): request CPU / GPU computation resources from the cloud platform dynamically when needed; release them once the computation completes. In this model, **the user is responsible for business logic, and the cloud platform is responsible for scheduling storage, computation and network**, selling hardware resources to users dynamically, on demand, by time slices. Meanwhile, since the scheduling authority is centralized in the platform, the cloud platform can deeply optimize storage, computation and network, continuously raising resource utilization — **users gain freedom close to "renting hardware", and the platform reaches utilization close to "token hosting".**
 
-This is also the direction of the "cluster operating system" envisioned by Pathways. DTorch's current resource management is still a prototype with static per-job allocation; this path is the long-term space opened by the Single-Controller architecture.
+DTorch's current resource management is still a prototype with static per-job allocation; this path is the long-term space opened by the Single-Controller architecture.
 
 ## 9 Industry opportunities
 
@@ -172,9 +172,8 @@ To compete with PyTorch through differentiation, DTorch is positioned as a distr
 
 ## 10 Disadvantages
 
-Every technical direction has its costs. Of DTorch's disadvantages, the first two stem from the architecture itself, and the last two from the project stage:
+Every technical direction has its costs. Of DTorch's disadvantages, the first stems from the architecture itself, and the last two from the project stage:
 
-- **Single point and throughput ceiling of centralized scheduling** (structural): the entire cluster depends on one Controller; if it crashes, the job fails; the construction and dispatch of compute nodes also go through the same Python thread — at the scale of thousands of GPUs, the message throughput of centralized scheduling may saturate before the GPUs do. This is also one of the reasons SPMD still dominates ultra-large-scale training. DTorch has implemented failure detection and graceful shutdown of Worker processes; Controller fault tolerance and controller sharding (the direction of [Pathways](https://arxiv.org/abs/2203.12533)) are long-term topics.
 - **Round-trip latency of data-dependent control flow** (structural): branches on data such as `if loss < threshold:` must send the value from the Worker back to the Client, constituting a cross-process round trip and a synchronization point; `TensorFuture` async retrieval can overlap with computation, but cannot eliminate it. The denser the control flow, the more visible the cost.
 - **Operator coverage and ecosystem maturity** (staged): operators must be integrated one by one, and the coverage is far smaller than PyTorch's; optimizations such as CUDA Graph and torch.compile need framework-level adaptation one by one; the complexity is concentrated in the C++ engine, raising the contribution threshold.
 - **Training capability not yet complete** (staged): only diffusion model (SD3 / FLUX) inference has landed; autograd, optimizers and other training capabilities are still on the roadmap — the train-inference unification of Section 6 is currently architectural potential, not a real capability.
@@ -220,7 +219,7 @@ This article discussed DTorch's differentiated positioning from five angles — 
 | 11 | progress and path | the diffusion model inference pipeline has landed, advancing along "inference first then training, capability first then scale" |
 | 12 | outlook | workload complexity keeps amplifying the mismatch with SPMD; the high ground of ease of use is still unoccupied |
 
-These advantages share the same architectural choice: **Single-Controller + DTensor**. It returns distributed programs to the shape of single-GPU programs (1–6), compresses the development cost to what a small team can bear (7), and naturally delineates the division of labor between users and cloud platforms (8) — beneath the apparent convergence of the PyTorch ecosystem, these are exactly where DTorch's opportunities lie (9, 12). At the same time, the disadvantages discussed in Section 10 are likewise the cost of this architectural choice: the throughput ceiling of centralized scheduling must be faced head-on as the scale evolves, and the gap in ecosystem and training capability means that in the short term DTorch establishes itself on domain-specific solutions and expands outward step by step — the progress and path of Section 11 is precisely the concrete arrangement of this expansion.
+These advantages share the same architectural choice: **Single-Controller + DTensor**. It returns distributed programs to the shape of single-GPU programs (1–6), compresses the development cost to what a small team can bear (7), and naturally delineates the division of labor between users and cloud platforms (8) — beneath the apparent convergence of the PyTorch ecosystem, these are exactly where DTorch's opportunities lie (9, 12). At the same time, the disadvantages discussed in Section 10 are likewise the cost of this architectural choice: the round-trip latency of data-dependent control flow is structural, and the gap in ecosystem and training capability means that in the short term DTorch establishes itself on domain-specific solutions and expands outward step by step — the progress and path of Section 11 is precisely the concrete arrangement of this expansion.
 
 DTorch's code and documentation are both open source on [GitHub](https://github.com/tingkuanpei/dtorch); attention and participation are welcome.
 

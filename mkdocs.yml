@@ -126,4 +126,4 @@ nav:
     - Introduction: blog/introduction.md
     - Architecture Design: blog/architecture.md
     - Advantages and Opportunities: blog/advantages_and_opportunities.md
-    - Refactoring the Distributed Ecosystem: blog/refactor_pytorch_ecosystem.md
+    - Refactoring the Ecosystem: blog/refactor_pytorch_ecosystem.md

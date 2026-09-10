@@ -129,4 +129,4 @@ nav:
     - 介绍: blog/introduction.md
     - 架构设计: blog/architecture.md
     - 优势与机遇: blog/advantages_and_opportunities.md
-    - 重构分布式生态: blog/refactor_pytorch_ecosystem.md
+    - 重构生态: blog/refactor_pytorch_ecosystem.md
