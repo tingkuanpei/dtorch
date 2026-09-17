@@ -9,6 +9,7 @@ This page shows how to build and install DTorch, then verify distributed inferen
 **① Install system dependencies and third-party libraries** (Ubuntu 22.04, one-time):
 
 ```bash
+pip install cmake==4.3.2
 apt install libboost-all-dev
 script/download_third_party_lib.sh
 script/install_zmq_ubuntu.sh
@@ -18,7 +19,7 @@ script/install_grpc_ubuntu.sh
 **② Preinstall build tools and `torch`.**
 
 ```bash
-pip install scikit-build-core torch==2.8.0 cmake==4.3.2
+pip install scikit-build-core torch==2.8.0
 ```
 
 **③ Editable install.** This step automatically installs the remaining runtime dependencies (`diffusers`, `transformers`, `numpy`, `accelerate`, etc.):

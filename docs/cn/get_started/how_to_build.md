@@ -2,6 +2,7 @@
 
 ### Prerequisites (one-time setup)
 ```bash
+pip install cmake==4.3.2
 apt install libboost-all-dev
 script/download_third_party_lib.sh
 script/install_zmq_ubuntu.sh
@@ -9,7 +10,7 @@ script/install_grpc_ubuntu.sh
 ```
 
 ```bash
-pip install scikit-build-core torch==2.8.0 cmake==4.3.2
+pip install scikit-build-core torch==2.8.0
 ```
 
 ### Editable install (development)
