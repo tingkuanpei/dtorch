@@ -25,7 +25,7 @@ For example, here is how to shard a tensor across two GPUs — the same task wri
 import dtorch
 
 shape = (4, 3)
-mesh = dtorch.DeviceMesh("cpu", [0, 1])
+mesh = dtorch.DeviceMesh("cuda", [0, 1])
 placements = [dtorch.Shard(0)]
 x = dtorch.rand(shape, device_mesh=mesh,
                 placements=placements)

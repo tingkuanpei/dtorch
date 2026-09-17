@@ -6,7 +6,7 @@ This page shows how to build and install DTorch, then verify distributed inferen
 
 ## 1. Build and Install
 
-**① Install system dependencies and third-party libraries** (Ubuntu 22.04, one-time):
+**① Install system dependencies and third-party libraries** (Ubuntu 22.04, python 3.11, one-time):
 
 ```bash
 pip install cmake==4.3.2
@@ -32,13 +32,13 @@ pip install -v --no-build-isolation -e .
 
 ## 2. Llama Model Distributed Test
 
-`python/dtorch/test/modules/test_llama.py` uses a single-GPU PyTorch model as reference (a small Llama with random weights, no weight download needed) to verify that DTorch output matches PyTorch under any combination of DP / TP / PP / CP. See [Llama parallel example](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/) for the parallel implementation details.
+`python/dtorch/test/modules/test_llama.py` uses a single-GPU PyTorch model as reference (a small Llama with random weights, no weight download needed) to verify that DTorch output matches PyTorch under any combination of DP / TP / PP / CP. See [Llama parallel example](https://tingkuanpei.github.io/dtorch/en/user_guide/llama_parallel/) for the parallel implementation details.
 
 ```bash
 python3 python/dtorch/test/modules/test_llama.py
 ```
 
-Without a multi-GPU cluster, you can enable [single-device distributed simulation](https://tingkuanpei.github.io/dtorch/cn/user_guide/python_api_overview/#6-彩蛋单卡模拟分布式) to run all strategy combinations on a single GPU:
+Without a multi-GPU cluster, you can enable [single-device distributed simulation](https://tingkuanpei.github.io/dtorch/en/user_guide/python_api_overview/#6-easter-egg-single-device-distributed-simulation) to run all strategy combinations on a single GPU:
 
 ```bash
 # DTORCH_NUM_GPU_WHEN_ENABLE_DTENSOR_IN_SAME_DEVICE sets the number of simulated GPUs (default 8)
