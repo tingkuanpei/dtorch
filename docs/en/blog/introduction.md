@@ -98,7 +98,7 @@ Below, taking "create and print **a distributed Tensor sharded along dimension 0
 import dtorch
 
 shape = (4, 3)
-mesh = dtorch.DeviceMesh("cpu", [0, 1])
+mesh = dtorch.DeviceMesh("cuda", [0, 1])
 placements = [dtorch.Shard(0)]
 x = dtorch.rand(shape, device_mesh=mesh,
                 placements=placements)
