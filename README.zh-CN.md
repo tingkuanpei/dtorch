@@ -106,7 +106,7 @@ DTorch 目前仅支持从源码安装 —— 构建步骤与示例见[快速开�
 
 ## 寻求支持
 
-DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/cn/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **peitingkuan@163.com**。
+DTorch 所基于的 [Single-Controller + Distributed Tensor 架构](https://tingkuanpei.github.io/dtorch/cn/blog/architecture/)是一条[颇具潜力的技术路线](https://tingkuanpei.github.io/dtorch/cn/blog/advantages_and_opportunities/)，然而仅凭个人的资源，还不足以将所有构想一一实现。如果你对这一方向感兴趣，欢迎联系 **tingkuanpei@gmail.com**。
 
 ---
 

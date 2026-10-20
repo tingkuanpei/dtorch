@@ -106,7 +106,7 @@ Visit our [documentation](https://tingkuanpei.github.io/dtorch/en/) to learn mor
 
 ## Call for Support
 
-The [Single-Controller + Distributed Tensor architecture](https://tingkuanpei.github.io/dtorch/en/blog/architecture/) that DTorch builds on is a [promising technical direction](https://tingkuanpei.github.io/dtorch/en/blog/advantages_and_opportunities/). However, my personal resources alone are not enough to carry all of these ideas through. If you are interested in this direction, feel free to reach out at **peitingkuan@163.com**.
+The [Single-Controller + Distributed Tensor architecture](https://tingkuanpei.github.io/dtorch/en/blog/architecture/) that DTorch builds on is a [promising technical direction](https://tingkuanpei.github.io/dtorch/en/blog/advantages_and_opportunities/). However, my personal resources alone are not enough to carry all of these ideas through. If you are interested in this direction, feel free to reach out at **tingkuanpei@gmail.com**.
 
 ---
 

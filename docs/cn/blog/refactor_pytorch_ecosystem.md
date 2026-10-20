@@ -1,12 +1,14 @@
 # DTorch：重构 PyTorch 生态，迈向 GPU 集群操作系统
 
-> **阅读提示：文中会用到 Distributed Tensor、Single-Controller 和 Multi-Controller 等概念，不熟悉的读者可先参考：[Distributed Tensor Overview](https://tingkuanpei.github.io/dtorch/cn/user_guide/distributed_tensor_overview/)、[Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_and_multi_controller/)。DTorch 和 PyTorch 分布式的代码对比请参考：[Github 页面](https://github.com/tingkuanpei/dtorch#example)**
+> **阅读提示：文中会用到 Distributed Tensor、Single-Controller 和 Multi-Controller 等概念，不熟悉的读者可先参考：[Distributed Tensor Overview](https://tingkuanpei.github.io/dtorch/cn/user_guide/distributed_tensor_overview/)、[Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_and_multi_controller/)。**
 
 ## 1 概述
 
-当前 PyTorch 为支持分布式计算提供了多种范式，不同的训练和推理框架选用不同的范式组合，如[表 2](#table-2)所示。**其中，Native Tensor（单卡上的 Tensor） + Multi-Controller(SPMD)的方案应用最为广泛，但其使用繁琐，门槛高，易用性极差。**Multi-Controller(SPMD)范式要求 Python 代码直接驱动本机的 GPU，调度过程对外是一个黑盒。集群管理系统无法感知容器内执行的计算，也无法高效迁移 GPU 容器([§6.6](#66-现有的容器迁移方案))，这导致了集群的 GPU 平均利用率普遍不高<sup><a href="#note-1">注释1</a></sup>——GPU 一经分配，利用率再低也无法收回再调度；任一机器故障，整个任务随之重启 GPU。
+当前 PyTorch 为支持分布式计算提供了多种范式，不同的训练和推理框架选用不同的范式组合，如[表 2](#table-2)所示。**其中，Native Tensor（单卡上的 Tensor） + Multi-Controller(SPMD)的方案应用最为广泛，但其使用繁琐，门槛高，易用性极差。**Multi-Controller(SPMD)范式要求 Python 代码直接驱动本机的 GPU，调度过程对集群管理系统是一个黑盒。**集群管理系统因此无法感知容器内执行的计算，也无法高效迁移 GPU 容器，这导致了集群的 GPU 平均利用率普遍不高<sup><a href="#note-1">注释1</a></sup>**——GPU 一经分配，利用率再低也无法收回再调度；任一机器故障，整个任务随之重启。
 
-为了解决上述问题，DTorch 完全抛弃 SPMD，**基于 Single-Controller + DTensor 构建了简洁、易用且完备的分布式 API**：用户不再需要编排进程与通信，分布式编程回到 single-device 时代，示例代码如[表 1](#table-1)所示。**这套 API 同时是 GPU 集群操作系统的标准接口，如[图 1](#image-1)所示——集群由此感知计算内容，统一调度存储、计算与网络资源，构成易用、低成本、高性能和高可靠性的 GPU 集群**。全球每年 AI/GPU 服务器硬件的市场规模已达数千亿美元，行业急需能感知计算内容、统一调度集群资源的 GPU 集群操作系统，谁先建成，谁就掌握下一代生态的底座。虽然重构 PyTorch 的生态需要投入大量的成本，但是集群利用率只要提高 1%，节省的成本就远超重构生态所需的全部投入。
+为了解决上述问题，DTorch 完全抛弃 SPMD，**基于 Single-Controller + DTensor 构建了简洁、易用且统一的分布式 API**，示例代码如[表 1](#table-1)所示。和 PyTorch 相比，DTorch 的优势如下：1. 单线程编程：用户在单线程中以全局视角描述计算，进程编排、通信与同步全部由框架完成，分布式编程回到 single-device 时代，开发与调试体验同单卡程序一致；2. 并行只是配置：同一份模型代码无需修改，即可运行在单机或 DP、TP、PP、CP 等并行方案及其组合下，并行度与切分方式由 DeviceMesh 与 Placements 描述，切换并行方案只需调整配置；3. 优化自由组合：量化、Cache、Kernel 融合等优化与并行方案正交，可在同一份模型实现上按需叠加；强化学习中各角色的编排只是 DeviceMesh 配置上的差异，角色间的权重传输则是普通的 redistribute 操作，训练与推理共用同一份模型实现——权重转换、权重同步与训推数值不一致等代价随之消失。
+
+在 CPU 操作系统上，CPU 核心由调度器统一管理、以抢占式分时复用：只要可运行的任务足够多，所有核心的利用率都会达到 100%，不存在“分配出去却闲置”的情况。GPU 集群则不同，其效率严重依赖人工编写代码与手动编排，大量集群的平均利用率不足 50%。行业因此急需能感知计算内容、统一调度集群资源、提高 GPU 利用率的 GPU 集群操作系统。在以容器为分配方式的集群管理模式下，资源的控制权掌握在容器内运行的 PyTorch 代码手中，集群层面无从调度。DTorch API 同时是 GPU 集群操作系统的标准接口（[图 1](#image-1)），将资源的控制权转交到集群操作系统手中——**集群由此感知并调整 GPU 上运行的计算，统一调度存储、计算与网络资源，构成易用、低成本、高性能和高可靠性的 GPU 集群**。相比基于容器的调度方式，集群操作系统具有以下优势：1. 集群能感知计算内容，从而最高效地调度 GPU 资源（识别并消除开发调试、数据加载缓慢、环境初始化、故障与推理流量潮汐等造成的 GPU 空闲，自动启用深度优化的高性能算子，把多个低负载任务合并到同一块 GPU 上运行等）；2. 具备驱逐、冻结和无感迁移 GPU 任务的能力；3. 具备容错与弹性调度的能力；4. 新芯片即插即用。全球每年 AI/GPU 服务器硬件的市场规模已达数千亿美元，大量中小团队购置了 GPU，但其 GPU 集群的平均利用率不高。虽然构建集群操作系统需要投入大量成本，但集群利用率只要提高 1%，节省的成本就远超这一投入。
 
 本文结构如下：第 2 章分析 PyTorch 分布式生态碎片化的现状、成因、本质与代价；第 3 章介绍 DTorch 的分布式 API；第 4、5 章论证 DTorch API 的两块基石——Why DTensor 与 Why Single-Controller；第 6 章分析 GPU 集群的困境，并展开 GPU 集群操作系统的设想；第 7 章描绘重构后的生态图景，并给出实现路径、劣势与挑战；第 8 章总结。
 
@@ -85,13 +87,13 @@ dist.destroy_process_group()
 
 ### 2.1 现状：碎片化的生态格局
 
-当前 PyTorch 为支持分布式计算提供了多种范式：张量表示有 Native Tensor（单卡上的 Tensor）与 DTensor(Distributed Tensor)；控制范式有 Multi-Controller(SPMD)与 Single-Controller + Multi-Controller(SPMD)。相关概念请参考：[Distributed Tensor](https://tingkuanpei.github.io/dtorch/cn/user_guide/distributed_tensor_overview/)、[Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_and_multi_controller/)。不同的训练和推理框架选用不同的范式组合，如[表 2](#table-2) 所示。这些组合在成熟、完备与易用上各有短板，没有一种能三者兼得：
+当前 PyTorch 为支持分布式计算提供了多种范式：张量表示有 Native Tensor（单卡上的 Tensor）与 DTensor（Distributed Tensor）；控制范式有 Multi-Controller(SPMD)与 Single-Controller + Multi-Controller(SPMD)。相关概念请参考：[Distributed Tensor](https://tingkuanpei.github.io/dtorch/cn/user_guide/distributed_tensor_overview/)、[Single-Controller 与 Multi-Controller](https://tingkuanpei.github.io/dtorch/cn/developer_guide/single_and_multi_controller/)。不同的训练和推理框架选用不同的范式组合，如[表 2](#table-2)所示。这些组合在成熟、完备与易用上各有短板，没有一种能三者兼得：
 
-  - Native Tensor 需要手动推导编排 Tensor 在所有 rank 上的行为，在合适的地方插入通讯算子，打印 Tensor 时需要手动聚合各个 rank 的值。
+  - Native Tensor 需要用户手动推导、编排其在所有 rank 上的行为，在合适的位置插入通信算子，打印 Tensor 时还需要手动聚合各个 rank 的值。
   - SPMD 范式要求所有 rank 执行同一份代码，rank 间行为不一致时只能以 if-else 区分执行路径；而 TP、PP、EP 等并行方式以及 RL 训练流程中，不同 rank 的行为差异极大，PyTorch 分布式代码的易用性因此急剧恶化。
   - Native Tensor + Multi-Controller(SPMD)的方案应用最为广泛，但其使用繁琐，门槛高，易用性极差。
   - DTensor 的方案开发多年，至今仍处于 [alpha state and under development](https://docs.pytorch.org/docs/stable/distributed.tensor.html)。
-  - 在分布式系统中，vllm 为解决推理请求的调度问题，verl 为解决 RL 流程的多角色异构编排问题, 它们还引入 ray 管理跨机器的进程，组成 Single-Controller + Multi-Controller(SPMD) 的混合范式，进一步提高了使用门槛。
+  - vLLM 与 veRL 为解决推理请求调度、RL 流程多角色异构编排的问题，引入 Ray 管理跨机器的进程，组成 Single-Controller + Multi-Controller(SPMD) 的混合范式，进一步提高了使用门槛。
 
 按照任务类型划分，则如[表 3](#table-3)所示：同一个模型在不同框架中存在多份互相独立的实现，优化又与框架的实现绑定，无法跨框架复用。再往下细分到 DP、TP、PP、CP、EP 和 ZeRO 等具体并行方案，各框架和范式支持的范围与深度更是参差不齐。
 
@@ -111,7 +113,7 @@ dist.destroy_process_group()
   |-|-|-|
   |single-device 训练与推理|transformers、diffusers、trl|提供一份易用的模型与算法实现，是生态中事实上的“模型标准库”|
   |多卡推理|vLLM、SGLang|各自重写一套主流模型的并行实现，并叠加推理服务优化（PagedAttention、continuous batching 等）|
-  |多卡训练|Megatron-LM、DeepSpeed|Megatron-LM 提供专用并行层并要求模型改写，TP / PP 仍需 Megatron 风格的模型适配；DeepSpeed 侧重 ZeRO 等优化，|
+  |多卡训练|Megatron-LM、DeepSpeed|Megatron-LM 提供专用并行层并要求模型改写，TP / PP 仍需 Megatron 风格的模型适配；DeepSpeed 侧重 ZeRO 等优化|
   |强化学习|veRL、Slime|训练引擎与推理引擎协同工作（引入 Ray 构成混合范式），由于训练和推理框架模型实现不同，因此需要处理两者间的权重转换和同步|
 
   <figcaption>表 3：PyTorch 生态按任务类型划分</figcaption>
@@ -155,7 +157,7 @@ PyTorch 分布式生态碎片化，是因为其缺乏完备、易用且统一的
   |权重格式转换|训练与推理引擎的切分方式、参数命名不同，需要 checkpoint conversion 工具链|
   |训推数值不一致|两套 kernel 实现，同一份权重的输出存在数值差异，在强化学习中代价最大|
   |算法与工程割裂|分布式适配依赖资深的框架开发人员，算法人员无法自己动手，新想法要等适配完成才能在集群上验证|
-  |调试成本高|Tensor在多卡上的分布方式需要自行推导；多进程日志混排；无法断点调试(断点导致集合通信 hang、死锁难以定位)|
+  |调试成本高|Tensor 在多卡上的分布方式需要自行推导；多进程日志混排；无法断点调试（断点会导致集合通信 hang、死锁难以定位）|
 
   <figcaption>表 5：分布式生态碎片化的代价</figcaption>
 </figure>
@@ -166,7 +168,7 @@ PyTorch 分布式生态碎片化，是因为其缺乏完备、易用且统一的
 
 - **单线程编程**：**用户在单线程中以全局视角描述计算，进程编排、通信与同步全部由框架完成，分布式编程回到 single-device 时代，开发与调试体验同单卡程序一致**；
 - **并行只是配置**：同一份模型代码无需修改，即可运行在单机或 DP、TP、PP、CP 等并行方案及其组合下，并行度与切分方式由 DeviceMesh 与 Placements 描述，切换并行方案只需调整配置；
-- **优化自由组合**：量化、Cache、Kernel 融合等优化与并行方案正交，可在同一份模型实现上按需叠加；强化学习中各角色的编排只是 DeviceMesh 配置的差异，角色间的权重传输只是普通的 redistribute 操作，训练与推理又共用同一份模型实现——[表 5](#table-5) 所列的权重转换、权重同步与训推数值不一致等代价随之消失；
+- **优化自由组合**：量化、Cache、Kernel 融合等优化与并行方案正交，可在同一份模型实现上按需叠加；强化学习中各角色的编排只是 DeviceMesh 配置上的差异，角色间的权重传输则是普通的 redistribute 操作，训练与推理共用同一份模型实现——[表 5](#table-5) 所列的权重格式转换、训推数值不一致，以及强化学习中的权重同步等代价随之消失；
 - **更低的 CPU 开销**：Client、Controller 与 Worker 异步执行，Python Client 的执行时间比 PyTorch 低约 64%，CUDA Kernel launch 更及时，模型端到端时延反而略降，SD3 实测数据见[表 6](#table-6)。
 
 DTorch 的文档与此前的博客已对此做过系统介绍：
@@ -180,7 +182,7 @@ DTorch 的文档与此前的博客已对此做过系统介绍：
 
 ## 4 Why DTensor
 
-DTorch 基于 Single-Controller 和 DTensor 设计了一套易的分布式 API。本章将阐述为什么选择 DTensor 方案。
+DTorch 基于 Single-Controller 和 DTensor 设计了一套易用的分布式 API。本章将阐述为什么选择 DTensor 方案。
 
 DTensor 在 Native Tensor 的基础上增加了 DeviceMesh 和 Placements 属性，用来描述 Tensor 在多卡上如何切分与存储。Native Tensor 不携带分布信息，切分、通信、聚合只能由用户手动编排，由此产生大量冗余代码；DTensor 把分布信息放进 Tensor 之后，这些工作全部由框架自动完成：
 
@@ -188,13 +190,13 @@ DTensor 在 Native Tensor 的基础上增加了 DeviceMesh 和 Placements 属性
 - **加载权重自动切分**：加载一份完整的 state_dict，框架按 Placements 自动切分到各 rank，无需像 Megatron-LM 那样按 TP / PP rank 预先切分和转换权重；
 - **取值自动聚合**：`to_torch()` 自动把各 rank 的分片聚合回完整 Tensor，无需手动 all-gather；
 - **通信即算子**：`redistribute()` 是一个普通算子，用户无需创建和管理 ProcessGroup，也无需手动调用 all-reduce 等集合通信；框架在底层根据计算图与网络拓扑选择最高效的实现，并让计算与通信自动重叠；
-- **不均匀切分自动处理**：维度长度不能被设备数整除时自动计算本地 shape，通信时自动 padding / unpadding，全程对用户透明；
+- **不均匀切分自动处理**：维度长度不能被设备数整除时自动计算本地 shape，通信时自动 padding / unpadding，全程对用户透明。
 
 更重要的是，DTensor 将 DP、TP、PP、CP、EP、ZeRO 等并行方式统一表达为 DeviceMesh 与 Placements 的组合——**同一份模型代码，配置不同的 DeviceMesh 与 Placements，即可组合开启任意并行方式，并行策略从模型实现退化为一份配置**（各并行方式在 Module 层的用法见 [Module 并行](https://tingkuanpei.github.io/dtorch/cn/user_guide/module_parallel/)，DP + TP + PP + CP 任意组合与切换的示例见 [Llama 并行示例](https://tingkuanpei.github.io/dtorch/cn/user_guide/llama_parallel/)）。
 
 ## 5 Why Single-Controller
 
-DTorch 基于 Single-Controller 和 DTensor 设计了一套易的分布式 API。本章将阐述为什么选择 Single-Controller 方案。
+DTorch 基于 Single-Controller 和 DTensor 设计了一套易用的分布式 API。本章将阐述为什么选择 Single-Controller 方案。
 
 Single-Controller 与 Multi-Controller + SPMD 的取舍并非新问题：2015 年的 TensorFlow v1 正是 Single-Controller——由单一 client 构建计算图、驱动整个集群执行，但受限于当年的实现，中心化调度给行业留下了“中心化调度 = 慢”的印象。2018 年前后，all-reduce 与 DDP 走向成熟，PyTorch 彻底倒向 Multi-Controller + SPMD。这一选择在当时是成立的：
 
@@ -262,9 +264,9 @@ Single-Controller 是分布式系统下一步的发展方向：vLLM 与 veRL 引
 
 ## 6 迈向 GPU 集群操作系统
 
-当前 GPU 集群以容器（Pod）为最小调度单位：用户向 Kubernetes 等容器编排系统申请指定数量、指定型号的 GPU 容器，在其中运行 PyTorch 程序。对编排系统而言，容器中的 PyTorch 程序是一个黑盒——它只能看到显存占用、GPU 利用率等硬件指标，看不见里面在运行什么计算。GPU 集群由于不具备高效冻结和迁移 GPU 容器的能力（[§6.6](#66-现有的容器迁移方案)），因此无法高效调度。这种方式存在以下缺陷：
+当前 GPU 集群以容器（Pod）为最小调度单位：用户向 Kubernetes 等容器编排系统申请指定数量、指定型号的 GPU 容器，在其中运行 PyTorch 程序。**对编排系统而言，容器中的 PyTorch 程序是一个黑盒——它只能看到显存占用、GPU 利用率等硬件指标，看不见、也无法调整容器内运行的计算。编排系统也不具备高效冻结和迁移 GPU 容器的能力（[§6.2](#62-无感迁移-gpu-任务)），因此无法高效调度集群资源。**这种方式存在以下缺陷：
 
-- **资源利用率低**：编排系统看不见容器里运行的计算，只能把 GPU 按整卡、整容器分配出去；分配之后，无论这张 GPU 的实际利用率多低，集群都无法收回再调度。
+- **资源利用率低**：编排系统看不见、也无法调整容器内运行的计算，只能把 GPU 按整卡、整容器分配出去；分配之后，无论这张 GPU 的实际利用率多低，集群都无法干预，也无法收回再调度。
 
 - **无法容错与弹性调度**：PyTorch 的 ProcessGroup 在启动时固定，发生故障时无法把任务迁移到健康节点，运行时也无法动态增删计算节点；扩缩容与故障恢复，都需要重启整个任务。
 
@@ -272,23 +274,64 @@ Single-Controller 是分布式系统下一步的发展方向：vLLM 与 veRL 引
 
 在当前的 PyTorch 生态下，GPU 集群的管理和调度大量依赖人工编排，新硬件的接入也需要用户修改程序、验证并适配。行业迫切需要一套能感知 PyTorch 计算内容、自动调度并管理整个 GPU 集群的操作系统。
 
-DTorch 采用 Client、Controller 和 Worker 解耦的调度方案, 它们彼此之间通过消息队列通讯，如 [图 2](#image-2) 所示。这一架构正好满足 GPU 集群操作系统的需求，如 [图 1](#image-1)：用户在 Python Client 上描述的计算逻辑会被序列化为 Operator 消息流并发送给 Controller，由 Controller 完成调度后交由 GPU 集群上的 Worker 执行：
+### 6.1 整体架构
 
-- **Client 运行在用户侧，是 GPU 集群操作系统的用户界面**，其负责构建计算节点，承载业务逻辑；
-- **Controller 和 Worker 都运行在集群侧，是调度和执行单元**，Controller 持有 Client 程序请求的硬件拓扑、全局计算子图等所有信息；Worker 它只负责执行计算，是无状态的执行单元。
-- 集群操作系统支持连接多个 Client，同时服务于多个用户。每个 Client 都会有一个 Controller；
-- 由于 “Operator 消息流” 和 “计算结果返回” 的通信量不大，且通信可与计算相互 overlap，因此对网络的要求不高，可以在普通以太网环境下使用。
+DTorch 采用 Client、Controller 和 Worker 解耦的调度方案，三者通过消息队列通信（[图 2](#image-2)）。这一架构正好满足 GPU 集群操作系统的需求（[图 1](#image-1)）：用户在 Python Client 上描述的计算逻辑会被序列化为 Operator 消息流并发送给 Controller，由 Controller 完成调度后交由 GPU 集群上的 Worker 执行：
 
-**用户通过 DTorch API 访问 GPU 集群，集群与 Controller 紧密配合，使得集群具备驱逐、冻结和迁移 Worker 的能力，可以完成弹性调度、容错等功能，实现易用、低成本、高性能和高可靠性的 GPU 集群。**
+- **Client 运行在用户侧，是 GPU 集群操作系统的用户界面**，负责构建计算图、承载业务逻辑；
+- **Controller 和 Worker 都运行在集群侧，分别是调度单元和执行单元**：Controller 持有集群硬件拓扑、全局计算图等全部信息；Worker 只负责执行计算，是无状态的执行单元；
+- 集群操作系统支持连接多个 Client，同时服务于多个用户，每个 Client 对应一个 Controller；
+- “Operator 消息流”与“计算结果返回”的通信量不大，且通信可与计算重叠，因此对网络要求不高，普通以太网即可。
+
+**用户通过 DTorch API 访问 GPU 集群，负责描述计算逻辑；集群则以最高效的方式在 GPU 上执行这些计算。集群具备驱逐、冻结和迁移 Worker 的能力，可以完成弹性调度与容错，构成易用、低成本、高性能和高可靠性的 GPU 集群。**
 
 <figure markdown id="image-2">
   ![Single-Client Single-Controller Multi-Worker 架构](https://cdn.jsdelivr.net/gh/tingkuanpei/dtorch-asset@main/blog/client_controller_worker_cn.png)
   <figcaption>图 2：Client、Controller 和 Worker 并发执行，并通过 Queue 异步通信</figcaption>
 </figure>
 
-### 6.1 提高资源利用率
+### 6.2 无感迁移 GPU 任务
 
-当前 GPU 集群平均利用率普遍低于 50%<sup><a href="#note-1">注释1</a></sup>。基于 DTorch API 构建的 GPU 集群操作系统具备驱逐、冻结和迁移 Worker 的能力，通过更好的调度提高资源利用率。其调度策略也很直观：将任务按实时性和优先级区分，优先保障高优先级的实时任务；空闲资源则由低优先级、非实时任务铺满（以更低的价格引导用户将训练和推理任务定义为非实时任务，空闲时自动调度执行）。
+合并低利用率任务、整理碎片资源，都需要把正在运行的任务迁移到其他 GPU 节点。当前 GPU 集群以容器（Pod）为调度单位，任务的迁移也只能以容器为单位整体进行；DTorch 则把迁移的基本单位从容器改为无状态的 Worker，只需搬运最少的 Tensor。
+
+**1. DTorch 的 Worker 迁移**
+
+在 DTorch 的 Client-Controller-Worker 架构下，Worker 是无状态的执行单元：计算所需的全部状态就是 Tensor，迁移因此简化为 Tensor 拷贝。集群可以感知计算内容，因此能在合适的时间迁移最少的 Tensor，并让 Tensor 拷贝与计算重叠，实现用户基本无感的迁移。
+
+Worker 迁移效率很高，且可以在任意硬件间进行：迁移时只需把计算所需的 Tensor 拷贝到目标 GPU，NCCL 与 gloo 通信组由 Controller 自动重建，无需用户程序参与；整个过程不涉及镜像拉取、运行环境配置与进程状态的保存恢复。需要拷贝的数据量也很小，且 Tensor 直接在 GPU 之间拷贝，不经过 CPU：
+
+- **推理**：模型权重是冻结的，因此可以在新机器上提前从模型文件加载，仅需拷贝 Activation Tensor；
+- **训练**：需拷贝权重、Adam 优化器状态与梯度。权重与 Adam 优化器状态可以提前拷贝，梯度可以在每次反向计算完成后拷贝，与后续计算 overlap；fp32 主权重与 fp16 副本并存时，只需拷贝 fp32 权重，fp16 副本可由其重新转换得到；
+- PyTorch 内存池中预留的内存与显存，以及 CPU 内存，均无需拷贝。
+
+**2. 现有的容器迁移方案**
+
+现有的基于 Pod 的集群以容器为迁移单位：用户进程、运行环境与计算状态全部封装在容器内，无法拆分，只能整体迁移。现有方案分为容器销毁并重建、容器热迁移两类：前者是当前的主流方案，以任务中断为代价；后者远未成熟。
+
+**容器销毁并重建**
+
+集群编排系统通知用户程序保存 checkpoint（前提是用户已实现该逻辑），随后销毁容器、在新机器上重启任务。整个过程无法做到对用户无感知，存在明显的缺陷：
+
+1. 需要用户主动适配 checkpoint 的保存逻辑；
+2. checkpoint 保存与任务重启非常耗时（拉取镜像、配置运行环境、读取模型文件，通常需要十分钟左右），期间机器持续闲置；
+3. 若用户未实现 checkpoint 保存，迁移还会造成部分计算内容丢失；
+4. 需要先将 checkpoint 保存在磁盘上，再从磁盘读取，速度慢。
+
+实践中，集群平台极少主动销毁用户容器——这会强行中断用户任务、给平台带来麻烦；平台通常只在发现 GPU 利用率低时发送告警邮件，而大部分用户并不会理会。
+
+**容器热迁移**
+
+热迁移方案还处于“早期商用 / 工业试点”阶段，目前最成熟的是 [CRIU](https://github.com/checkpoint-restore/criu) + [cuda-checkpoint](https://github.com/NVIDIA/cuda-checkpoint)。该方案目前仅在单卡推理服务的快速初始化场景落地，多卡训练场景尚未应用，其缺陷如下：
+
+- **迁移耗时长**：需要迁移显存、CUDA 进程状态、容器内存与状态，耗时随显存占用线性增长——[DevZero 实测](https://www.devzero.io/blog/gpu-container-checkpoint-restore)，仅生成 CUDA checkpoint 一项，A100 单卡约需 13 秒、4 卡约 55 秒；checkpoint 文件的大小与进程的显存占用相当，几百 GB 的数据需要先写入磁盘，跨机传输与恢复还需大量时间；
+- **只能在软硬件完全相同的环境间迁移**：CPU 与 GPU 的型号、驱动版本、CUDA 版本等任一不同，都会导致迁移失败——CUDA 官方文档要求恢复端 GPU 与原 GPU 为同一芯片型号且显存足够（[CUDA Checkpointing Driver API](https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__CHECKPOINT.html)），NCCL 与 CUDA Checkpoint 的配合还存在严格的库版本限制（[NCCL Roadmap](https://github.com/NVIDIA/nccl/issues/2272)）；
+- **暂不支持 NCCL**：多机分布式训练依赖的 NCCL 不在支持范围内（[DevZero](https://www.devzero.io/blog/gpu-container-checkpoint-restore#current-limitations-and-requirements)），NCCL 和 gloo 通信组等均需在用户程序中适配重建，多机迁移还需要额外的协调——NCCL 官方也将「CUDA Checkpoint 支持改进（移除 deviceAPI、CUDA Graph 与严格的库版本限制）」列为尚未启动的待开发事项（[NCCL Roadmap](https://github.com/NVIDIA/nccl/issues/2272)）。
+
+综合来看，**容器迁移并没有解决 GPU 利用率低的问题，只是把问题从一台机器转移到另一台机器**——[表 7](#table-7) 所列的利用率低的问题，单靠容器迁移一个都解决不了。最关键的是，任务迁移需要与“感知容器内的计算”配合执行，并能在不同型号的 GPU 间迁移、把多个任务合并到同一块 GPU 上运行，这样才能整理显存与算力的碎片，提高集群的整体利用率。任务的算力与显存需求随时间波动，集群若无法感知容器内的计算，便只能依据利用率合并任务；算力需求回升时任务相互争用、时延升高，显存需求一旦超出单卡容量，任务便会 OOM 失败。
+
+### 6.3 提高集群利用率
+
+当前 GPU 集群平均利用率普遍低于 50%<sup><a href="#note-1">注释1</a></sup>。基于 DTorch API 构建的 GPU 集群操作系统具备驱逐、冻结和迁移 Worker 的能力，可以将任务按实时性和优先级区分：优先保障高优先级的实时任务，空闲资源则由低优先级、非实时任务铺满（以更低的价格引导用户将训练和推理任务定义为非实时任务，空闲时自动调度执行）。
 
 <a id="note-1"></a>
 
@@ -301,35 +344,35 @@ DTorch 采用 Client、Controller 和 Worker 解耦的调度方案, 它们彼此
 
     - 这个数据也和集群运行的任务、模型规模、团队的类型密切相关。Jupyter Notebook 交互式开发，以及小模型的训练推理任务，都会拉低集群的平均利用率。专门用于 LLM 训练且经过精心优化的集群，利用率可以达到 90% 以上。工程能力强的团队利用率高，小团队利用率低。
 
-GPU 集群平均利用率低的原因有很多，需要逐一分析、针对性优化；具体成因与集群操作系统的应对策略如[表 7](#table-7)所示。这些策略本身并非高深的技术，但在现有的“基于容器（Pod）的调度方案”下，集群看不见也无法修改用户代码，优化无从落地。
+GPU 集群平均利用率低的原因有很多，需要逐一分析、针对性优化；具体成因与集群操作系统的应对策略如[表 7](#table-7)所示。**这些策略本身并不复杂，但在现有的“基于容器（Pod）的调度方案”下，这些策略的落地严重依赖人工介入——琐碎的工作需要反复执行，省下来的 GPU 算力不会给执行者带来收益，即使不做也不会有人发现。DTorch 将这些策略交由程序自动执行，可以大幅提高 GPU 集群的利用率**。
 
 <figure markdown id="table-7">
-  |原因|详情|应对策略|
-  |-|-|-|
-  |预留与“占而不跑”|按配额给各团队预留资源；部分成员为抢占资源过量申请，却不使用|统一资源池 + 配额 + 超售：资源不足时迁移低优先级任务；迁移合并低利用率任务，回收资源|
-  |开发调试|开发、调试时 GPU 间歇使用，拉低平均利用率|多人共享 GPU，显存溢出时自动迁移任务；单卡模拟分布式，调试不占多卡|
-  |负载非算力密集|推理、小模型、Embedding 等任务吃显存不吃计算，GPU 利用率天然低|混合部署：把吃显存与吃计算的任务调度到同一张卡上，互补填充|
-  |推理流量波动|在线推理随用户流量起伏，夜间、周末等低谷期 GPU 利用率大幅下探|弹性伸缩：低谷期回收 GPU，分配给离线训练和推理等低优先级任务|
-  |数据与 I/O 瓶颈|模型加载、数据加载、数据预处理和 checkpoint 写入|常用模型预加载到 GPU 显存或内存；框架侧数据预加载与多线程预处理；异步 checkpoint；OS 收集统计信息，提示用户优化|
-  |整卡独占|K8s device-plugin 默认硬隔离独占：一张卡只给一个任务，任务用不满时，空闲的算力与显存既不能共享，也无法合并|细粒度共享 + 全局调度：MIG / 时间片 / 算子级调度让多任务共用一张卡|
-  |碎片化|空闲 GPU 零散分布在各节点，单节点数量不足，多机多卡作业无法启动|拓扑感知调度 + 碎片整理：按通信需求放置任务；迁移低优先级任务，归拢空闲 GPU|
-  |环境初始化|镜像拉取、容器启动、torchrun 启动、NCCL 初始化等耗时数分钟|Worker 常驻成池：新作业秒级接管，免去容器和进程的创建开销|
-  |故障空转|单节点故障导致整个作业重启|心跳检测秒级发现故障，任务迁移到健康节点，只重算丢失的部分|
-  |框架优化不到位|框架层实现低效；调用未优化的算子|提供深度优化的框架与算子实现；OS 收集算子级统计信息，反馈给用户并做针对性优化|
-  |型号绑定|用户程序绑定特定型号 GPU，其余型号闲置|统一调度：按任务需求自动匹配型号，弱化型号绑定|
+  |原因|详情|DTorch 应对策略|说明|
+  |-|-|-|-|
+  |预留与“占而不跑”|按配额给各团队预留资源；部分成员为抢占资源过量申请，却不使用|统一资源池 + 配额 + 超售：资源不足时迁移低优先级任务；迁移合并低利用率任务，回收资源|现有方案不支持无感迁移 GPU 任务，无法充分实现 GPU 超售|
+  |开发调试|开发、调试时 GPU 间歇使用，拉低平均利用率|多人共享 GPU，显存溢出时自动迁移任务；单卡模拟分布式，调试不占多卡|现有方案不支持无感迁移 GPU 任务，多人共享 GPU 会导致 OOM、任务启动失败与运行缓慢等问题|
+  |负载非算力密集|推理、小模型、Embedding 等任务吃显存不吃计算，GPU 利用率天然低|混合部署：把吃显存与吃计算的任务调度到同一张卡上，互补填充|同上|
+  |推理流量波动|在线推理随用户流量起伏，夜间、周末等低谷期 GPU 利用率大幅下探|弹性伸缩：低谷期回收 GPU，分配给离线训练和推理等低优先级任务|现有方案依赖人工介入；要大幅提高集群利用率，需要完全自动化的调度方式|
+  |数据与 I/O 瓶颈|模型加载、数据加载、数据预处理和 checkpoint 写入|常用模型预加载到 GPU 显存或内存；框架侧数据预加载与多线程预处理；异步 checkpoint；OS 收集统计信息，提示用户优化|现有方案依赖用户修改代码，DTorch 可以自动完成上述优化|
+  |整卡独占|K8s device-plugin 默认硬隔离独占：一张卡只给一个任务，任务用不满时，空闲的算力与显存既不能共享，也无法合并|细粒度共享 + 全局调度：MIG / 时间片 / 算子级调度让多任务共用一张卡|现有方案只支持 MIG，灵活性不足|
+  |碎片化|空闲 GPU 零散分布在各节点，单节点数量不足，多机多卡作业无法启动|拓扑感知调度 + 碎片整理：按通信需求放置任务；迁移低优先级任务，归拢空闲 GPU|现有方案不支持无感迁移 GPU 任务，无法整理 GPU 碎片|
+  |环境初始化|镜像拉取、容器启动、torchrun 启动、NCCL 初始化等耗时数分钟|Worker 常驻成池：新作业秒级接管，免去容器和进程的创建开销|现有方案无法解决此问题|
+  |故障空转|单节点故障导致整个作业重启|心跳检测秒级发现故障，任务迁移到健康节点，只重算丢失的部分|现有方案发现和处理故障的效率低|
+  |框架优化不到位|框架层实现低效；调用未优化的算子|提供深度优化的框架与算子实现；OS 收集算子级统计信息，反馈给用户并做针对性优化|DTorch 能感知用户的计算内容，可以对热点代码做深度优化；实现高性能算子后可直接启用，无需用户修改代码|
+  |型号绑定|用户程序绑定特定型号 GPU，其余型号闲置|统一调度：按任务需求自动匹配型号，弱化型号绑定|现有方案无法按任务需求自动匹配 GPU 型号|
 
   <figcaption>表 7：GPU 利用率低的原因与集群操作系统的应对策略</figcaption>
 </figure>
 
-### 6.2 容错与弹性调度
+### 6.4 容错与弹性调度
 
 PyTorch SPMD 的进程组在启动时固定：任一 rank 故障，整个作业随之重启；扩缩容同样以重启为代价。集群操作系统则把故障处理与资源的弹性调度变成普通的调度操作。
 
 - **故障感知**：GPU 集群操作系统可以感知计算内容、访问底层硬件，因此比只能看到容器指标的编排系统更早发现硬件故障。
-- **故障恢复**：当故障发生故障时，Worker 状态分为可恢复和不可恢复两种。如果是前者，则迁移到健康的 Worker 上继续运行，上层程序对故障完全没有感知；如果是后者，则向用户 Client 抛出异常，Client 接收到异常后，从模型文件或上一个 checkpoint 恢复模型，继续执行后续计算。
+- **故障恢复**：发生故障时，Worker 的状态分为可恢复与不可恢复两种。如果是前者，则迁移到健康的 Worker 上继续运行，上层程序对故障完全没有感知；如果是后者，则向用户 Client 抛出异常，Client 接收到异常后，从模型文件或上一个 checkpoint 恢复模型，继续执行后续计算。
 - **弹性调度**：借助 DTorch API 层的 scalable 接口，任务可以动态发送到多个 Worker 上并行计算；集群操作系统具备驱逐、冻结和迁移任务的能力，能根据当前负载与队列，弹性地执行剩余任务。
 
-### 6.3 接入新芯片：用户无感
+### 6.5 接入新芯片：用户无感
 
 在 PyTorch 生态下，使用新的硬件之所以困难，是因为硬件细节与适配责任被层层推给了用户：
 
@@ -343,7 +386,7 @@ DTorch 则基于标准 API 完全屏蔽硬件细节，新硬件的适配工作�
 - **集群平台**：可以将用户流量统一切换到不同硬件上，降低运营风险与成本，吸引更多用户。
 - **芯片厂商**：芯片落地有了统一出口——只需完成与集群操作系统的一次适配，无需再逐一适配各训练和推理框架，也无需帮助用户逐个迁移任务。
 
-### 6.4 优秀的用户体验
+### 6.6 易用、低成本、高性能和高可靠性
 
 基于 DTorch 的 GPU 集群操作系统具有易用、低成本、高性能和高可靠性的特性：
 
@@ -352,7 +395,7 @@ DTorch 则基于标准 API 完全屏蔽硬件细节，新硬件的适配工作�
 - **高性能**：集群对存储、网络与计算统一调度，显著提高 GPU 利用率；并提供深度优化的框架与算子实现，提高用户程序的运行速度；操作系统还可以收集程序的运行信息，提示用户可以使用哪些优化手段。
 - **高可靠性**：高效的故障感知和故障恢复能力，为用户提供高可用的 GPU 服务。
 
-### 6.5 全新的商业模式：卖硬件变成卖计算
+### 6.7 全新的商业模式：卖硬件变成卖计算
 
 2026 年，全球 AI/GPU 服务器硬件的市场规模已达数千亿美元，GPU 集群是 AGI 时代最重要的基础设施。对 GPU 集群平台而言，基于 DTorch API 构建的集群操作系统意味着全新的商业模式：**从卖硬件转向卖计算**。
 
@@ -363,38 +406,6 @@ DTorch 则基于标准 API 完全屏蔽硬件细节，新硬件的适配工作�
 
 在“卖计算”的模式下，用户获得易用、低成本、高性能和高可靠性的服务；平台出售计算服务、赚取合理的利润，并有充足的动力降低运营成本：更高效的调度、适配成本更低的硬件、更优的训练与推理框架和算子实现。芯片厂商则获得统一的落地出口——一次适配即可，无需再逐一适配各训练和推理框架。由此形成用户、平台与芯片厂商三方共赢的商业模式。
 
-### 6.6 现有的容器迁移方案
-
-现有的任务迁移方案分为两类：容器销毁并重建、容器热迁移。前者是当前的主流方案，以任务中断为代价；后者远未成熟——两者都无法为集群提供高效的容器迁移能力。
-
-**1. 容器销毁并重建**
-
-集群编排系统通知用户程序保存 checkpoint（前提是用户已实现该逻辑），随后销毁容器、在新机器上重启任务。整个过程无法做到对用户无感知，存在明显的缺陷：
-
-1. 需要用户主动适配 checkpoint 的保存逻辑；
-2. checkpoint 保存与任务重启非常耗时（拉取镜像、配置运行环境、读取模型文件，通常需要十分钟左右），期间机器持续闲置；
-3. 若用户未实现 checkpoint 保存，迁移还会造成部分计算内容丢失。
-
-实践中，集群平台极少主动销毁用户容器——这会强行中断用户任务、给平台自己带来麻烦，平台通常只在发现 GPU 利用率低时发送告警邮件，而大部分用户并不会理会。
-
-**2. 容器热迁移**
-
-热迁移方案还处于“早期商用 / 工业试点”阶段，目前最成熟的是 [CRIU](https://github.com/checkpoint-restore/criu) + [cuda-checkpoint](https://github.com/NVIDIA/cuda-checkpoint)。该方案存在以下缺陷：
-
-- **迁移耗时长**：需要迁移显存、CUDA 进程状态、容器内存与状态，耗时随显存占用线性增长——[DevZero 实测](https://www.devzero.io/blog/gpu-container-checkpoint-restore)，仅生成 cuda checkpoint 一项，A100 单卡约需 13 秒、4 卡约 55 秒；checkpoint 文件的大小与进程的显存占用相当，跨机传输与恢复还需额外的时间；
-- **只能在软硬件完全相同的环境间迁移**：CPU 与 GPU 的型号、驱动版本、CUDA 版本等任一不同，都会导致迁移失败——CUDA 官方文档要求恢复端 GPU 与原 GPU 为同一芯片型号且显存足够（[CUDA Checkpointing Driver API](https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__CHECKPOINT.html)），NCCL 与 CUDA Checkpoint 的配合还存在严格的库版本限制（[NCCL Roadmap](https://github.com/NVIDIA/nccl/issues/2272)）；
-- **暂不支持 NCCL**：多机分布式训练依赖的 NCCL 不在支持范围内（[DevZero](https://www.devzero.io/blog/gpu-container-checkpoint-restore#current-limitations-and-requirements)），NCCL 和 gloo 通信组等均需在用户程序中适配重建，多机迁移还需要额外的协调——NCCL 官方也将「CUDA Checkpoint 支持改进（移除 deviceAPI、CUDA Graph 与严格的库版本限制）」列为尚未启动的待开发事项（[NCCL Roadmap](https://github.com/NVIDIA/nccl/issues/2272)）。
-
-**3. DTorch 的 Worker 迁移**
-
-与上述两种方案相比，GPU 集群操作系统的 Worker 迁移则非常高效。Worker 是无状态的执行单元，迁移时只需把计算所需的 Tensor 从一块 GPU 拷贝到另一块 GPU，且可以在任意硬件间进行；Controller 自动重建 NCCL 与 gloo 通信组，用户程序对此完全无感知。
-
-- **推理**：模型权重是 frozen 的，可提前从模型文件加载，仅需拷贝 Activation Tensor；
-- **训练**：需拷贝权重与 Adam 优化器状态等——拷贝时机可选在权重更新完成之后，避免拷贝梯度和 Activation Tensor；fp32 主权重与 fp16 副本并存时，只需拷贝 fp32 权重，fp16 副本可由其重新转换得到；
-- PyTorch 内存池中预留的内存/显存与 CPU 内存无需拷贝；
-
-综合来看，**容器迁移并没有解决 GPU 利用率低的问题，只是把问题从一台机器转移到另一台机器**——[表 7](#table-7) 所列的利用率低的问题，单靠容器迁移一个都解决不了。最关键的是，任务迁移需要与“感知容器内的计算”配合执行，并能在不同型号的 GPU 间迁移、把多个任务合并到同一块 GPU 上运行，这样才能整理显存与算力的碎片，提高集群的整体利用率。任务的算力与显存需求随时间波动，集群若无法感知容器内的计算，便只能依据利用率合并任务，算力需求回升时任务相互争用、时延升高，显存需求一旦超出单卡容量，任务便会 OOM 失败。
-
 ## 7 基于易用性，重构 PyTorch 生态
 
 DTorch 基于 DTensor 和 Single-Controller 构建了易用的分布式 API。凭借极致的易用性，基于 DTorch API 搭建的分布式训练和推理框架可以吸引一部分用户。这套 API 同时也是 GPU 集群操作系统的标准接口——借助集群提供的易用、低成本、高性能和高可靠性的算力服务，DTorch 可以吸引大部分用户。
@@ -404,10 +415,10 @@ DTorch 基于 DTensor 和 Single-Controller 构建了易用的分布式 API。�
 目前主流的深度学习分布式训练和推理框架基本都基于 PyTorch 开发，生态看似已经收敛到 PyTorch，实则还存在机会：
 
 - **分布式易用性不足**：PyTorch 的分布式能力建立在 Multi-Controller(SPMD)之上，TP / PP / EP 等并行方式要求改写模型、手动切分权重、编排通信，分布式开发依赖资深的框架工程师；官方主推的 DTensor 开发多年，至今仍处于 alpha state and under development，未被主流的训练和推理框架广泛采用。
-- **集群利用率低、可靠性差**：容器中的 PyTorch 程序对调度系统是黑盒，GPU 只能整卡分配，空闲算力无法回收再调度；进程组启动时固定，任一 rank 故障，整个作业随之重启（[6.1 节](#61-提高资源利用率)、[6.2 节](#62-容错与弹性调度)）。
-- **接入新硬件成本高**：PyTorch API 暴露 CUDA Graph、Stream 等硬件细节，Megatron-LM、vLLM 等框架又与 NVIDIA GPU 深度绑定；新硬件需要构建完整的分布式软件栈，并逐个适配 PyTorch 及其上层框架，周期长且各家重复投入（[6.3 节](#63-接入新芯片用户无感)）。
+- **集群利用率低、可靠性差**：容器中的 PyTorch 程序对调度系统是黑盒，GPU 只能整卡分配，空闲算力无法回收再调度；进程组启动时固定，任一 rank 故障，整个作业随之重启（[6.3 节](#63-提高集群利用率)、[6.4 节](#64-容错与弹性调度)）。
+- **接入新硬件成本高**：PyTorch API 暴露 CUDA Graph、Stream 等硬件细节，Megatron-LM、vLLM 等框架又与 NVIDIA GPU 深度绑定；新硬件需要构建完整的分布式软件栈，并逐个适配 PyTorch 及其上层框架，周期长且各家重复投入（[6.5 节](#65-接入新芯片用户无感)）。
 
-**DTorch 的核心优势有两个：极致的易用性，以及提高 GPU 集群利用率的能力。**如 [6.5 节](#65-全新的商业模式卖硬件变成卖计算)所述，全球每年 AI/GPU 服务器硬件的市场规模已达数千亿美元。集群利用率只要提高 1%，节省的成本就远超重构生态所需的全部投入。极致的易用性是 DTorch 吸引用户的入口，提高集群利用率带来的成本优势则是 DTorch 的杀手锏。
+**DTorch 的核心优势有两个：极致的易用性，以及提高 GPU 集群利用率的能力。**如 [6.7 节](#67-全新的商业模式卖硬件变成卖计算)所述，全球每年 AI/GPU 服务器硬件的市场规模已达数千亿美元。集群利用率只要提高 1%，节省的成本就远超重构生态所需的全部投入。极致的易用性是 DTorch 吸引用户的入口，提高集群利用率带来的成本优势则是 DTorch 的杀手锏。
 
 **当前 PyTorch 的分布式 API 尚未完善，其分布式生态繁琐难用，这为 DTorch 留出了难得的窗口期。**PyTorch 本身是计算 API 而非解决方案：transformers、diffusers、trl、Megatron-LM、vLLM、SGLang、veRL 等解决方案框架都生长于其上；用户真正需要的是这些能直接跑模型的框架，计算 API 只是承载它们的底座。基于 DTorch API 构建同样功能的框架，就能凭借极致的易用性吸引大量用户——当年 PyTorch 正是凭借易用性战胜 TensorFlow，如今易用性的天平将倒向 DTorch。未来还会有新的模型在不同的领域不断涌出，当 DTorch 和 PyTorch 站在同样的起点时，易用性将会成为决定性的因素。
 
@@ -449,7 +460,7 @@ PyTorch 分布式接口的核心是 Multi-Controller + SPMD 范式，这一范�
 **2. GPU 集群操作系统的调度**
 
 - PyTorch 的 Python 代码与 CUDA 执行必须位于同一进程，不支持将 CUDA kernel 的运行放到远端机器上，补齐这一能力的改造成本很高。而且调度与执行分离会带来更高的时延，这一时延问题需要系统性的解决方案。
-- SPMD 范式要求多个进程，且每个 GPU 对应一个进程：例如运行 128 GPU 的分布式训练就需要 128 个进程，这些进程若运行在用户侧，会使本地机器不堪重负；若运行在集群侧，用户启动、调试任务都不方便。此外，128 个进程需同时与集群通信并同步执行，会带来巨大的通信开销与时延。
+- SPMD 范式要求多个进程，且每个 GPU 对应一个进程：例如 128 卡的分布式训练就需要 128 个进程，这些进程若运行在用户侧，会使本地机器不堪重负；若运行在集群侧，用户启动、调试任务都不方便。此外，128 个进程需同时与集群通信并同步执行，会带来巨大的通信开销与时延。
 
 PyTorch 当初选择 SPMD，看中的正是调度不出本机：Controller 与 GPU 同机，调度只经过 PCIe 总线，没有跨网络的开销。而当 Python 程序与 CUDA kernel 分处不同的机器时，调度注定要跨越网络——SPMD 赖以成立的前提已然消失，此时再保留 SPMD，理由何在？
 
@@ -460,7 +471,7 @@ PyTorch 当初选择 SPMD，看中的正是调度不出本机：Controller 与 G
 **1. 用户**
 
 - 通过“和 single-device 一样易用的分布式 API”调用 GPU 集群，无需编排进程与通信，开发和调试回到单卡时代。分布式编程不再需要依赖资深的框架开发工程师，算法工程师可以专注于算法与模型的优化。
-- 在任何联网设备上都能访问 GPU，无需配置镜像环境，启动容器，使用方式和本地计算没有任何差别。无需自建 GPU 集群，模型、数据都托管在云端。只为真正执行的计算付费，不需要为空闲的算力付费。GPU 集群会自动优化，提高程序的运行速度，也会提供优化建议，帮助用户提高效率。
+- 在任何联网设备上都能访问 GPU，无需配置镜像环境、启动容器，使用方式和本地计算没有任何差别。无需自建 GPU 集群，模型、数据都托管在云端。只为真正执行的计算付费，不需要为空闲的算力付费。GPU 集群会自动优化，提高程序的运行速度，也会提供优化建议，帮助用户提高效率。
 - 用户可以随时更换硬件：程序与框架无需任何改动，软件栈适配与精度验证全部由平台承担。
 
 **2. 解决方案开发者**
@@ -485,7 +496,7 @@ PyTorch 当初选择 SPMD，看中的正是调度不出本机：Controller 与 G
 
 - **DTorch 的训练和推理能力尚不成熟**：目前已落地的只有扩散模型推理示范，[7.2 节](#72-实现路径)中推理与训练两步的其余工作——LLM 推理、训练组件、RL 训练——都仍在路线图中，对齐成熟训练和推理框架的性能需要投入大量的开发人力；
 - **生态惯性**：现有框架的用户与维护者需要付出迁移成本，Megatron-LM、vLLM、SGLang 和 veRL 等框架的成熟度与社区积累不会一夜蒸发；
-- **GPU 集群操作系统尚待开发**：[7.2 节](#72-实现路径)所列的调度、存储、通信、容错、多租户等功能均需从零构建，需要持续的人力投入与一定的开发周期；
+- **GPU 集群操作系统尚待开发**：[7.2 节](#72-实现路径)所列的调度、存储、通信、容错、多租户等功能均需从零构建，需要持续的人力投入与一定的开发周期。
 
 DTorch 先以分布式接口的易用性吸引一部分用户；GPU 集群操作系统建成后，再以易用、低成本、高性能与高可靠的算力服务吸引大部分用户。分布式 API 是集群操作系统的标准接口，集群操作系统为 API 提供算力底座，二者优势互补，最终形成完整的生态。
 
